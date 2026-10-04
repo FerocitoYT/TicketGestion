@@ -185,9 +185,11 @@ td, th { border-bottom: 1px solid var(--tm-line); padding: 10px 10px; text-align
 
 @media (max-width: 900px) {
   .topbar nav.desk { display: none; }
-  .burger { display: block; }
-  .topbar { flex-wrap: wrap; height: auto; gap: 10px; padding: 10px 14px; }
-  .searchbar { order: 3; max-width: none; width: 100%; }
+  .burger { display: block; flex-shrink: 0; }
+  .topbar { flex-wrap: wrap; height: auto; gap: 10px; padding: 10px 14px; align-items: center; }
+  .topbar .brand { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 19px; }
+  .topbar .spacer { display: none; }
+  .searchbar { flex: 1 1 100%; order: 3; width: auto; max-width: none; }
   .hero h1 { font-size: clamp(28px, 7vw, 34px); }
   .hero { padding: 32px 22px; margin-top: 16px; }
   .hero form input[type="text"] { flex: 1 1 100%; }
