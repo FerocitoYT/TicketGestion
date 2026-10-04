@@ -1,12 +1,16 @@
 import QRCode from "qrcode";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/lib/db";
+import { getSession } from "@/lib/auth";
 import { ticketQrPayload } from "@/lib/tickets";
 
 export const dynamic = "force-dynamic";
 
 export default async function TicketPage({ params }: { params: Promise<{ code: string }> }) {
+  const s = await getSession();
   const { code } = await params;
+  // Entradas solo con sesión: evita que un QR reenviado se abra sin control.
+  if (!s) redirect(`/login?next=/t/${encodeURIComponent(code)}`);
   let row: Record<string, unknown> | undefined;
   try {
     const sql = getDb();
