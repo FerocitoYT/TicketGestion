@@ -1,0 +1,31 @@
+:root { --bg:#0b1020; --card:#141b33; --acc:#4f7cff; --txt:#eef2ff; --mut:#9aa7c7; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: system-ui, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--txt); }
+a { color: inherit; }
+.topbar { display:flex; justify-content:space-between; align-items:center; padding:14px 22px; background:#0e1430; border-bottom:1px solid #263; position:sticky; top:0; }
+.brand { font-weight:800; font-size:20px; color:#fff; text-decoration:none; }
+.topbar nav { display:flex; gap:14px; align-items:center; }
+.topbar nav a { text-decoration:none; color:var(--mut); }
+.btn-small { background:var(--acc); color:#fff !important; padding:8px 12px; border-radius:8px; }
+.wrap { max-width:1080px; margin:0 auto; padding:26px 18px 60px; }
+.foot { text-align:center; color:var(--mut); padding:26px; }
+.hero { padding:34px 0; }
+.hero h1 { font-size:42px; margin:0 0 10px; }
+.hero p { color:var(--mut); font-size:18px; }
+.grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap:16px; margin-top:22px; }
+.card { background:var(--card); border:1px solid #26315c; border-radius:14px; padding:16px; text-decoration:none; display:block; }
+.card h3 { margin:8px 0; }
+.badge { display:inline-block; background:#223; border:1px solid #334; padding:3px 9px; border-radius:99px; font-size:12px; color:var(--mut); }
+.form { display:grid; gap:12px; max-width:560px; }
+input, select, textarea { background:#0e1430; border:1px solid #2b3a6e; color:#fff; padding:11px 12px; border-radius:10px; font-size:15px; width:100%; }
+button, .btn { background:var(--acc); color:#fff; border:0; padding:12px 16px; border-radius:10px; font-weight:700; cursor:pointer; text-decoration:none; display:inline-block; }
+.btn-ghost { background:transparent; border:1px solid #334; }
+table { width:100%; border-collapse:collapse; margin-top:14px; }
+td, th { border-bottom:1px solid #26315c; padding:10px 8px; text-align:left; font-size:14px; }
+.alert { padding:12px; border-radius:10px; margin:12px 0; }
+.ok { background:#0f3d26; } .err { background:#4d1620; }
+.zones { display:grid; gap:10px; margin:16px 0; }
+.zone { display:flex; justify-content:space-between; align-items:center; background:var(--card); padding:12px 14px; border-radius:12px; border:1px solid #2b3a6e; }
+.qr { background:#fff; padding:14px; border-radius:12px; display:inline-block; }
+.muted { color:var(--mut); }
+.row { display:flex; gap:10px; flex-wrap:wrap; }
