@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
+import { baseUrl } from "@/lib/site-url";
 import { newTicketCode } from "@/lib/tickets";
 import { sendEmail } from "@/lib/email";
 
@@ -39,10 +40,11 @@ export async function POST(req: Request) {
         VALUES (${orderId}, ${String(order.event_id)}, ${String(order.zone_id)}, ${newTicketCode()}, ${String(holders[i]?.name || order.buyer_name)}, ${String(holders[i]?.doc || "")})`;
     }
     const ev = await sql`SELECT title FROM events WHERE id=${String(order.event_id)} LIMIT 1`;
+    const appUrl = baseUrl(req);
     await sendEmail(
       String(order.buyer_email),
       `Tus entradas: ${String(ev[0]?.title || "evento")}`,
-      `<p>Hola ${String(order.buyer_name)},</p><p>Tu compra (${String(order.qty)} entradas) está confirmada.</p><p>Recupera tus QR en <a href="${process.env.NEXT_PUBLIC_APP_URL}/mis-entradas">Mis entradas</a> con este email.</p>`
+      `<p>Hola ${String(order.buyer_name)},</p><p>Tu compra (${String(order.qty)} entradas) está confirmada.</p><p>Recupera tus QR en <a href="${appUrl}/mis-entradas">Mis entradas</a> con este email.</p>`
     );
   }
   if (event.type === "charge.refunded") {

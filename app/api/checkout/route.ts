@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { getDb } from "@/lib/db";
-import { getStripe, siteUrl } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
+import { baseUrl } from "@/lib/site-url";
 import { newTicketCode } from "@/lib/tickets";
 import { parseHolders } from "@/lib/holders";
 import { sendEmail } from "@/lib/email";
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
     INSERT INTO orders (event_id, zone_id, buyer_name, buyer_email, qty, total_cents, idempotency_key, holders)
     VALUES (${eventId}, ${zoneId}, ${buyerName}, ${buyerEmail}, ${qty}, ${total}, ${idem}, ${JSON.stringify(holders)}) RETURNING id`;
   const orderId = created[0].id as string;
+  const appUrl = baseUrl(req);
   // MODO PRUEBAS: sin Stripe se simula el pago y se emiten los tickets directamente.
   if (!stripeConfigured()) {
     const upd = await sql`
@@ -56,17 +58,17 @@ export async function POST(req: Request) {
     await sendEmail(
       buyerEmail,
       `Tus entradas (simulado): ${String(zones[0].title)}`,
-      `<p>Pago <strong>simulado</strong>, no se ha cargado nada.</p><p>Recupera tus QR en ${siteUrl()}/mis-entradas con este email.</p>`
+      `<p>Pago <strong>simulado</strong>, no se ha cargado nada.</p><p>Recupera tus QR en ${appUrl}/mis-entradas con este email.</p>`
     );
-    return NextResponse.redirect(`${siteUrl()}/compra-ok?order=${orderId}`, 303);
+    return NextResponse.redirect(`${appUrl}/compra-ok?order=${orderId}`, 303);
   }
   const stripe = getStripe();
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: buyerEmail,
     line_items: [{ price_data: { currency: "eur", product_data: { name: `${zones[0].title} — ${zones[0].name} x${qty}` }, unit_amount: total }, quantity: 1 }],
-    success_url: `${siteUrl()}/compra-ok?order=${orderId}`,
-    cancel_url: `${siteUrl()}/eventos/${encodeURIComponent(String((zones[0] as Record<string, unknown>).slug || ""))}`,
+    success_url: `${appUrl}/compra-ok?order=${orderId}`,
+    cancel_url: `${appUrl}/eventos/${encodeURIComponent(String((zones[0] as Record<string, unknown>).slug || ""))}`,
     metadata: { orderId },
   });
   await sql`UPDATE orders SET stripe_session_id=${session.id} WHERE id=${orderId}`;
