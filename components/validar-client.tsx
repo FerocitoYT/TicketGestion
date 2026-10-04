@@ -165,23 +165,34 @@ export default function ValidarClient({ gate0, openEvents, closedEvents, isOwner
         </label>
       )}
       <p className="muted">Apunta al QR: se valida solo, sin tocar nada. Sesión: ✅ {count.ok} · ⛔ {count.no}</p>
-      <div className="row" style={{ marginBottom: 12 }}>
-        {camOn
-          ? <button className="btn btn-blue" onClick={stopCam}>Detener cámara</button>
-          : <button className="btn btn-blue" onClick={startCam}>Activar cámara</button>}
-        {devices.length > 1 && (
-          <select value={deviceId} onChange={(e) => setDeviceId(e.target.value)} style={{ maxWidth: 220 }}>
-            {devices.map((d) => <option key={d.deviceId} value={d.deviceId}>{d.label}</option>)}
-          </select>
-        )}
-      </div>
+      <label style={{ maxWidth: 320, display: "block", marginBottom: 12 }}>Puerta<input value={gate} onChange={(e) => setGate(e.target.value)} /></label>
+      {!camOn && (
+        <button className="btn btn-blue" onClick={startCam} style={{ fontSize: 18, padding: "16px 30px", width: "100%", maxWidth: 480 }}>
+          Activar lector QR
+        </button>
+      )}
       {camError && <p className="alert err">{camError}</p>}
-      <video ref={videoRef} style={{ width: "100%", maxWidth: 480, borderRadius: 12, background: "#000", display: camOn ? "block" : "none" }} playsInline muted />
-      <form onSubmit={(e) => { e.preventDefault(); validate(payload, eventId || openEvents[0].id); }} className="form" style={{ marginTop: 12 }}>
-        <label>Código manual (QR dañado o pistola USB)<input value={payload} onChange={(e) => setPayload(e.target.value)} placeholder="F8CL34RS.firma" /></label>
-        <label>Puerta<input value={gate} onChange={(e) => setGate(e.target.value)} /></label>
-        <button disabled={busy}>{busy ? "Validando…" : "Validar código"}</button>
-      </form>
+      {camOn && (
+        <>
+          <video ref={videoRef} style={{ width: "100%", maxWidth: 560, borderRadius: 12, background: "#000" }} playsInline muted />
+          <div className="row" style={{ marginTop: 10, maxWidth: 560 }}>
+            <button className="btn btn-blue" onClick={stopCam}>Detener lector</button>
+            {devices.length > 1 && (
+              <select value={deviceId} onChange={(e) => setDeviceId(e.target.value)} style={{ maxWidth: 220 }}>
+                {devices.map((d) => <option key={d.deviceId} value={d.deviceId}>{d.label}</option>)}
+              </select>
+            )}
+          </div>
+        </>
+      )}
+      {!camOn && <video ref={videoRef} style={{ display: "none" }} playsInline muted />}
+      <details style={{ marginTop: 18, maxWidth: 480 }}>
+        <summary className="muted" style={{ cursor: "pointer", fontWeight: 700 }}>Solo si es necesario: introducir código manualmente</summary>
+        <form onSubmit={(e) => { e.preventDefault(); validate(payload, eventId || openEvents[0].id); }} className="form" style={{ marginTop: 10 }}>
+          <label>Código de la entrada<input value={payload} onChange={(e) => setPayload(e.target.value)} placeholder="F8CL34RS.firma" /></label>
+          <button disabled={busy}>{busy ? "Validando…" : "Validar código"}</button>
+        </form>
+      </details>
       {res && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center",
