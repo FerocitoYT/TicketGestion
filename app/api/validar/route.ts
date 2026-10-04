@@ -3,12 +3,14 @@ import { z } from "zod";
 import { getDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { verifyTicketPayload } from "@/lib/tickets";
-import { accessState, type AccessEvent } from "@/lib/access";
+import { accessState } from "@/lib/access";
 
 const Schema = z.object({
   payload: z.string().min(3),
   gate: z.string().max(60).optional(),
-  eventId: z.string().uuid(),
+  // Opcional por compatibilidad: si viene, el QR debe ser de ese evento.
+  // Si no viene, el evento se resuelve desde el propio QR.
+  eventId: z.string().uuid().optional(),
 });
 
 export async function POST(req: Request) {
@@ -20,10 +22,28 @@ export async function POST(req: Request) {
   const code = verifyTicketPayload(parsed.data.payload);
   if (!code) return NextResponse.json({ error: "QR falsificado o corrupto" }, { status: 400 });
   const sql = getDb();
-  // Evento de puerta: debe ser de la organización.
-  const evs = await sql`SELECT * FROM events WHERE id=${parsed.data.eventId} AND org_id=${s.orgId} LIMIT 1`;
-  const ev = evs[0] as unknown as AccessEvent | undefined;
-  if (!ev) return NextResponse.json({ error: "Evento no encontrado en tu organización" }, { status: 404 });
+  const rows = await sql`
+    SELECT t.*, e.title AS event, z.name AS zone, e.org_id, o.buyer_name, o.buyer_email,
+           e.status AS estate, e.ends_at AS eends, e.access_grace_minutes AS egrace, e.access_closed AS eclosed
+    FROM tickets t JOIN events e ON e.id=t.event_id JOIN zones z ON z.id=t.zone_id
+    JOIN orders o ON o.id=t.order_id
+    WHERE t.code=${code} LIMIT 1`;
+  const t = rows[0] as Record<string, unknown> | undefined;
+  if (!t) return NextResponse.json({ error: "Entrada no existe" }, { status: 404 });
+  if (String(t.org_id) !== s.orgId) return NextResponse.json({ error: "Entrada de otra organización" }, { status: 403 });
+  // Evento resuelto desde el propio QR (o verificado si la puerta lo indicó).
+  const ev = {
+    id: String(t.event_id),
+    title: String(t.event),
+    status: String(t.estate),
+    starts_at: "",
+    ends_at: (t.eends as string | null) || null,
+    access_grace_minutes: Number(t.egrace ?? 120),
+    access_closed: Boolean(t.eclosed),
+  };
+  if (parsed.data.eventId && parsed.data.eventId !== ev.id) {
+    return NextResponse.json({ error: "El QR no es de este punto de control", event: ev.title }, { status: 403 });
+  }
   // Vinculación: el propietario valida cualquier evento; el resto solo sus asignados.
   if (s.role !== "owner") {
     const asg = await sql`SELECT 1 FROM event_staff WHERE event_id=${ev.id} AND user_id=${s.userId} LIMIT 1`;
@@ -32,19 +52,6 @@ export async function POST(req: Request) {
   // Ventana operativa: ni eventos finalizados (auto o manual).
   const st = accessState(ev);
   if (!st.open) return NextResponse.json({ error: `Control no operativo: ${st.reason}`, event: ev.title }, { status: 410 });
-  const rows = await sql`
-    SELECT t.*, e.title AS event, z.name AS zone, e.org_id, o.buyer_name, o.buyer_email
-    FROM tickets t JOIN events e ON e.id=t.event_id JOIN zones z ON z.id=t.zone_id
-    JOIN orders o ON o.id=t.order_id
-    WHERE t.code=${code} LIMIT 1`;
-  const t = rows[0] as Record<string, unknown> | undefined;
-  if (!t) return NextResponse.json({ error: "Entrada no existe" }, { status: 404 });
-  if (String(t.org_id) !== s.orgId) return NextResponse.json({ error: "Entrada de otra organización" }, { status: 403 });
-  // El QR debe ser de ESTE evento: un pase no abre otros conciertos.
-  if (String(t.event_id) !== ev.id) {
-    await sql`INSERT INTO scans (ticket_id, event_id, result, gate, scanned_by) VALUES (${String(t.id)}, ${ev.id}, 'invalid', ${parsed.data.gate || ""}, ${s.userId})`;
-    return NextResponse.json({ error: `QR de otro evento (${String(t.event)}). No abre ${ev.title}`, event: ev.title }, { status: 403 });
-  }
   const person = {
     code, event: String(t.event), zone: String(t.zone),
     holder: String(t.holder_name || ""), doc: String(t.holder_doc || ""),

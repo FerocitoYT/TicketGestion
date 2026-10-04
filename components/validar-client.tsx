@@ -38,7 +38,6 @@ export default function ValidarClient({ openEvents, closedEvents, isOwner }: {
   openEvents: Evt[]; closedEvents: { id: string; title: string; reason: string }[]; isOwner: boolean;
 }) {
   // Un solo evento operativo -> puerta fija, sin elegir (ritmo máximo, cero errores).
-  const [eventId, setEventId] = useState(openEvents[0]?.id || "");
   const [payload, setPayload] = useState("");
   const [res, setRes] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
@@ -56,15 +55,15 @@ export default function ValidarClient({ openEvents, closedEvents, isOwner }: {
 
   useEffect(() => () => { stopCam(); if (timerRef.current) clearInterval(timerRef.current); }, []);
 
-  async function validate(code: string, ev: string) {
-    if (busyRef.current || !code.trim() || !ev) return;
+  async function validate(code: string) {
+    if (busyRef.current || !code.trim()) return;
     busyRef.current = true;
     setBusy(true);
     try {
       const r = await fetch("/api/validar", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ payload: code.trim(), eventId: ev }),
+        body: JSON.stringify({ payload: code.trim() }),
       });
       const j = (await r.json()) as Result;
       setRes(j);
@@ -116,7 +115,7 @@ export default function ValidarClient({ openEvents, closedEvents, isOwner }: {
         if (value === lastRef.current.code && now - lastRef.current.at < 3000) return;
         lastRef.current = { code: value, at: now };
         setPayload(value);
-        validate(value, eventId || openEvents[0]?.id || "");
+        validate(value);
       });
       controlsRef.current = controls;
       setCamOn(true);
@@ -150,19 +149,10 @@ export default function ValidarClient({ openEvents, closedEvents, isOwner }: {
     );
   }
 
-  const current = openEvents.find((e) => e.id === eventId) || openEvents[0];
   return (
     <>
       <h1>Control de acceso</h1>
-      {openEvents.length === 1 ? (
-        <p><span className="badge">Puerta: {current.title}</span></p>
-      ) : (
-        <label style={{ maxWidth: 480, display: "block" }}>Evento en puerta
-          <select value={eventId} onChange={(e) => setEventId(e.target.value)}>
-            {openEvents.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
-          </select>
-        </label>
-      )}
+      <p><span className="badge">Trabajando en: {openEvents.map((e) => e.title).join(" · ")}</span></p>
       <p className="muted">Sesión: ✅ {count.ok} · ⛔ {count.no}</p>
       {!camOn && (
         <button className="btn btn-blue" onClick={startCam} style={{ fontSize: 18, padding: "16px 30px", width: "100%", maxWidth: 480 }}>
@@ -183,7 +173,7 @@ export default function ValidarClient({ openEvents, closedEvents, isOwner }: {
       <video ref={videoRef} style={{ width: "100%", maxWidth: 560, borderRadius: 12, background: "#000", marginTop: camOn ? 10 : 0, display: camOn ? "block" : "none" }} playsInline muted />
       <details style={{ marginTop: 18, maxWidth: 480 }}>
         <summary className="muted" style={{ cursor: "pointer", fontWeight: 700 }}>Solo si es necesario: introducir código manualmente</summary>
-        <form onSubmit={(e) => { e.preventDefault(); validate(payload, eventId || openEvents[0].id); }} className="form" style={{ marginTop: 10 }}>
+        <form onSubmit={(e) => { e.preventDefault(); validate(payload); }} className="form" style={{ marginTop: 10 }}>
           <label>Código de la entrada<input value={payload} onChange={(e) => setPayload(e.target.value)} placeholder="F8CL34RS.firma" /></label>
           <button disabled={busy}>{busy ? "Validando…" : "Validar código"}</button>
         </form>
