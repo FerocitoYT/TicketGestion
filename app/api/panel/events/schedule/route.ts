@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 
 export async function POST(req: Request) {
-  const s = await getSession();
-  if (!s) return NextResponse.json({ error: "Login" }, { status: 401 });
+  const s = await requireRole(["owner", "staff"]);
+  if (!s) return NextResponse.json({ error: "Sin permiso: solo propietario o equipo" }, { status: 403 });
   const form = await req.formData();
   const id = String(form.get("id") || "");
   const sql = getDb();

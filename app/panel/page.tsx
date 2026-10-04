@@ -7,6 +7,16 @@ export const dynamic = "force-dynamic";
 export default async function Panel() {
   const s = await getSession();
   if (!s) redirect("/login");
+  // Puerta (scanner) no entra al panel: solo propietario y equipo.
+  if (s.role !== "owner" && s.role !== "staff") {
+    return (
+      <>
+        <h1>Sin acceso</h1>
+        <p className="muted">Tu cuenta de puerta no tiene acceso al panel.</p>
+        <p><a className="btn btn-blue" href="/validar">Ir al control de acceso</a> <a className="btn" href="/mis-registros">Mis registros</a></p>
+      </>
+    );
+  }
   try {
     const sql = getDb();
     const events = await sql`

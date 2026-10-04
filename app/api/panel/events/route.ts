@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 
 function slugify(s: string) {
@@ -7,8 +7,8 @@ function slugify(s: string) {
 }
 
 export async function POST(req: Request) {
-  const s = await getSession();
-  if (!s) return NextResponse.json({ error: "Login requerido" }, { status: 401 });
+  const s = await requireRole(["owner", "staff"]);
+  if (!s) return NextResponse.json({ error: "Sin permiso: solo propietario o equipo" }, { status: 403 });
   const form = await req.formData();
   const title = String(form.get("title") || "").slice(0, 160);
   if (!title) return NextResponse.json({ error: "Título requerido" }, { status: 400 });

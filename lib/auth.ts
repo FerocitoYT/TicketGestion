@@ -64,3 +64,10 @@ export const sessionCookieOptions = {
   path: "/",
   maxAge: 60 * 60 * 24 * 30,
 };
+
+// Puerta de rol: devuelve la sesión solo si el rol está permitido.
+export async function requireRole(allowed: string[]): Promise<Session | null> {
+  const s = await getSession();
+  if (!s || !allowed.includes(s.role)) return null;
+  return s;
+}

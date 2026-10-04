@@ -8,6 +8,7 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const s = await getSession();
   if (!s) redirect("/login");
+  if (s.role !== "owner" && s.role !== "staff") redirect("/validar");
   const sql = getDb();
   const ev = await sql`SELECT * FROM events WHERE id=${id} AND org_id=${s.orgId} LIMIT 1`;
   if (!ev[0]) notFound();

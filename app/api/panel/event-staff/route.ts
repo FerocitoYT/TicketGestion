@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 
 // Guarda la asignación de personal de puerta a un evento (checkboxes userIds).
 export async function POST(req: Request) {
-  const s = await getSession();
-  if (!s) return NextResponse.json({ error: "Login" }, { status: 401 });
+  const s = await requireRole(["owner", "staff"]);
+  if (!s) return NextResponse.json({ error: "Sin permiso: solo propietario o equipo" }, { status: 403 });
   const form = await req.formData();
   const eventId = String(form.get("eventId") || "");
   const userIds = form.getAll("userIds").map(String);
