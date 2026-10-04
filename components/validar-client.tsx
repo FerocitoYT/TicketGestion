@@ -34,12 +34,11 @@ function beep(ok: boolean) {
   } catch { /* sin audio, sigue */ }
 }
 
-export default function ValidarClient({ gate0, openEvents, closedEvents, isOwner }: {
-  gate0: string; openEvents: Evt[]; closedEvents: { id: string; title: string; reason: string }[]; isOwner: boolean;
+export default function ValidarClient({ openEvents, closedEvents, isOwner }: {
+  openEvents: Evt[]; closedEvents: { id: string; title: string; reason: string }[]; isOwner: boolean;
 }) {
   // Un solo evento operativo -> puerta fija, sin elegir (ritmo máximo, cero errores).
   const [eventId, setEventId] = useState(openEvents[0]?.id || "");
-  const [gate, setGate] = useState(gate0);
   const [payload, setPayload] = useState("");
   const [res, setRes] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,7 +64,7 @@ export default function ValidarClient({ gate0, openEvents, closedEvents, isOwner
       const r = await fetch("/api/validar", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ payload: code.trim(), gate, eventId: ev }),
+        body: JSON.stringify({ payload: code.trim(), eventId: ev }),
       });
       const j = (await r.json()) as Result;
       setRes(j);
@@ -164,8 +163,7 @@ export default function ValidarClient({ gate0, openEvents, closedEvents, isOwner
           </select>
         </label>
       )}
-      <p className="muted">Apunta al QR: se valida solo, sin tocar nada. Sesión: ✅ {count.ok} · ⛔ {count.no}</p>
-      <label style={{ maxWidth: 320, display: "block", marginBottom: 12 }}>Puerta<input value={gate} onChange={(e) => setGate(e.target.value)} /></label>
+      <p className="muted">Sesión: ✅ {count.ok} · ⛔ {count.no}</p>
       {!camOn && (
         <button className="btn btn-blue" onClick={startCam} style={{ fontSize: 18, padding: "16px 30px", width: "100%", maxWidth: 480 }}>
           Activar lector QR

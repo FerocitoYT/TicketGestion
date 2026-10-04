@@ -27,7 +27,6 @@ export default async function ValidarPage() {
     <>
       <p className="crumbs">Personal · {s.name} ({s.role})</p>
       <ValidarClient
-        gate0="Puerta A"
         openEvents={open.map((e) => ({ id: e.id, title: e.title }))}
         closedEvents={closed.map((e) => ({ id: e.id, title: e.title, reason: accessState(e).reason }))}
         isOwner={s.role === "owner"}
