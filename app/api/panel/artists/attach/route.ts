@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { slugify, fetchWikiBio } from "@/lib/wiki";
+import { fetchDeezerPhoto } from "@/lib/deezer";
 
 const Attach = z.object({
   eventId: z.string().uuid(),
@@ -25,10 +26,11 @@ export async function POST(req: Request) {
   if (!b.success) return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
   if (!(await findEvent(sql, b.data.eventId, s.orgId))) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
   const wiki = await fetchWikiBio(b.data.name);
+  const dz = wiki.photo ? { photo: "", fans: 0 } : await fetchDeezerPhoto(b.data.name);
   const slug = slugify(b.data.name);
   const art = await sql`
     INSERT INTO artists (name, slug, photo_url, bio, genre, mbid)
-    VALUES (${b.data.name}, ${slug}, ${wiki.photo}, ${wiki.bio}, ${b.data.genre}, ${b.data.mbid})
+    VALUES (${b.data.name}, ${slug}, ${wiki.photo || dz.photo}, ${wiki.bio}, ${b.data.genre}, ${b.data.mbid})
     ON CONFLICT (mbid) DO UPDATE SET photo_url = CASE WHEN artists.photo_url = '' THEN EXCLUDED.photo_url ELSE artists.photo_url END,
       bio = CASE WHEN artists.bio = '' THEN EXCLUDED.bio ELSE artists.bio END,
       genre = CASE WHEN artists.genre = '' THEN EXCLUDED.genre ELSE artists.genre END
