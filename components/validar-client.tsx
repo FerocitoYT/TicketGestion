@@ -51,9 +51,11 @@ export default function ValidarClient({ gate0, openEvents, closedEvents, isOwner
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const busyRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [left, setLeft] = useState(0);
   const lastRef = useRef<{ code: string; at: number }>({ code: "", at: 0 });
 
-  useEffect(() => () => stopCam(), []);
+  useEffect(() => () => { stopCam(); if (timerRef.current) clearInterval(timerRef.current); }, []);
 
   async function validate(code: string, ev: string) {
     if (busyRef.current || !code.trim() || !ev) return;
@@ -71,8 +73,22 @@ export default function ValidarClient({ gate0, openEvents, closedEvents, isOwner
       beep(!!j.ok);
       if (j.ok) {
         setPayload("");
-        // La confirmación verde se cierra sola para seguir con la fila.
-        setTimeout(() => setRes((cur) => (cur === j ? null : cur)), 2600);
+        // Con asiento numerado el verde aguanta 15 s para revisar; sin asiento, 2,6 s.
+        const hold = j.seat ? 15000 : 2600;
+        if (timerRef.current) clearInterval(timerRef.current);
+        if (j.seat) {
+          const end = Date.now() + hold;
+          setLeft(Math.ceil(hold / 1000));
+          timerRef.current = setInterval(() => {
+            const s = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+            setLeft(s);
+            if (s <= 0 && timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+          }, 500);
+        }
+        setTimeout(() => {
+          if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+          setRes((cur) => (cur === j ? null : cur));
+        }, hold);
       }
     } finally {
       busyRef.current = false;
@@ -184,6 +200,7 @@ export default function ValidarClient({ gate0, openEvents, closedEvents, isOwner
               </div>
             )}
             {!res.ok && res.code && <p style={{ opacity: 0.9 }}>Posible reventa o QR copiado: retén la entrada y avisa al responsable.</p>}
+            {res.ok && res.seat && <p style={{ fontSize: 17 }}>Se mantiene {left} s para revisar el asiento</p>}
             <button onClick={() => setRes(null)} style={{ marginTop: 16, background: "#fff", color: res.ok ? "#0a7a3d" : "#b31217", border: 0, borderRadius: 99, padding: "12px 34px", fontWeight: 800, fontSize: 16 }}>
               {res.ok ? "Siguiente" : "Cerrar"}
             </button>
