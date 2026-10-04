@@ -11,11 +11,21 @@ export type MbArtist = {
 
 const UA = "TicketGestion/1.0 (https://github.com/FerocitoYT/TicketGestion)";
 
+// MusicBrainz no usa API keys (acceso anónimo) pero exige cortesía: ~1 req/seg.
+// Este throttle en memoria evita 503 por ráfagas desde el panel.
+let lastCall = 0;
+async function courteousFetch(url: string): Promise<Response> {
+  const wait = 1100 - (Date.now() - lastCall);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastCall = Date.now();
+  return fetch(url, { headers: { "User-Agent": UA, Accept: "application/json" } });
+}
+
 export async function searchArtistsSpain(q: string): Promise<{ artists: MbArtist[]; error?: string }> {
   const query = `artist:"${q}" AND area:"Spain"`;
   const url = `https://musicbrainz.org/ws/2/artist/?query=${encodeURIComponent(query)}&fmt=json&limit=12`;
   try {
-    const r = await fetch(url, { headers: { "User-Agent": UA, Accept: "application/json" } });
+    const r = await courteousFetch(url);
     if (r.status === 503) return { artists: [], error: "MusicBrainz ocupado, prueba en unos segundos" };
     if (!r.ok) return { artists: [], error: `MusicBrainz respondió ${r.status}` };
     const j = await r.json();
