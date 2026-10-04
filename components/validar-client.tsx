@@ -171,19 +171,16 @@ export default function ValidarClient({ openEvents, closedEvents, isOwner }: {
       )}
       {camError && <p className="alert err">{camError}</p>}
       {camOn && (
-        <>
-          <video ref={videoRef} style={{ width: "100%", maxWidth: 560, borderRadius: 12, background: "#000" }} playsInline muted />
-          <div className="row" style={{ marginTop: 10, maxWidth: 560 }}>
-            <button className="btn btn-blue" onClick={stopCam}>Detener lector</button>
-            {devices.length > 1 && (
-              <select value={deviceId} onChange={(e) => setDeviceId(e.target.value)} style={{ maxWidth: 220 }}>
-                {devices.map((d) => <option key={d.deviceId} value={d.deviceId}>{d.label}</option>)}
-              </select>
-            )}
-          </div>
-        </>
+        <div className="row" style={{ marginTop: 10, maxWidth: 560 }}>
+          <button className="btn btn-blue" onClick={stopCam}>Detener lector</button>
+          {devices.length > 1 && (
+            <select value={deviceId} onChange={(e) => setDeviceId(e.target.value)} style={{ maxWidth: 220 }}>
+              {devices.map((d) => <option key={d.deviceId} value={d.deviceId}>{d.label}</option>)}
+            </select>
+          )}
+        </div>
       )}
-      {!camOn && <video ref={videoRef} style={{ display: "none" }} playsInline muted />}
+      <video ref={videoRef} style={{ width: "100%", maxWidth: 560, borderRadius: 12, background: "#000", marginTop: camOn ? 10 : 0, display: camOn ? "block" : "none" }} playsInline muted />
       <details style={{ marginTop: 18, maxWidth: 480 }}>
         <summary className="muted" style={{ cursor: "pointer", fontWeight: 700 }}>Solo si es necesario: introducir código manualmente</summary>
         <form onSubmit={(e) => { e.preventDefault(); validate(payload, eventId || openEvents[0].id); }} className="form" style={{ marginTop: 10 }}>
