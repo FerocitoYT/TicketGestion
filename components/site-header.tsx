@@ -25,7 +25,7 @@ export default function SiteHeader() {
       <header className="topbar">
         <button className="burger" aria-label="Abrir menú" onClick={() => setOpen(true)}>☰</button>
         <a className="brand" href="/">Ticket<span>Gestion</span></a>
-        <form className="searchbar" action="/eventos">
+        <form className="searchbar" action="/buscar">
           <input name="q" placeholder="Busca artista, equipo o recinto…" />
           <button>Buscar</button>
         </form>
