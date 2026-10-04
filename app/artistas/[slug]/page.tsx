@@ -28,7 +28,6 @@ export default async function ArtistaPage({ params }: { params: Promise<{ slug: 
               {a.photo_url && <img src={String(a.photo_url)} alt={String(a.name)} width={220} style={{ borderRadius: 12, float: "right", margin: "0 0 12px 16px" }} />}
               <h2>Sobre el artista</h2>
               <p>{String(a.bio || "Próximamente más información.")}</p>
-              <p className="muted">Fuente foto/biografía: Ticketmaster / Wikipedia.</p>
             </div>
           </div>
         </section>
