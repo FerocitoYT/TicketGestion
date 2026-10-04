@@ -3,7 +3,7 @@ import { useState } from "react";
 
 export default function MisEntradas() {
   const [email, setEmail] = useState("");
-  const [tickets, setTickets] = useState<{ code: string; event: string; zone: string; status: string }[]>([]);
+  const [tickets, setTickets] = useState<{ code: string; event: string; zone: string; status: string; holder?: string }[]>([]);
   const [err, setErr] = useState("");
   async function lookup(e: React.FormEvent) {
     e.preventDefault();
@@ -23,7 +23,7 @@ export default function MisEntradas() {
       {err && <p className="alert err">{err}</p>}
       {tickets.map((t) => (
         <div key={t.code} className="card" style={{ marginTop: 10 }}>
-          <strong>{t.event}</strong> · {t.zone} · {t.code} · {t.status}
+          <strong>{t.code}</strong> · {t.event} · {t.zone} · {t.status}{t.holder ? ` · ${t.holder}` : ""}
           <br /><a href={`/t/${encodeURIComponent(t.code)}`}>Ver QR</a>
         </div>
       ))}

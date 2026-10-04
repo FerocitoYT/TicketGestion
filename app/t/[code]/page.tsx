@@ -10,7 +10,7 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
   try {
     const sql = getDb();
     const rows = await sql`
-      SELECT t.code, t.status, t.holder_name, e.title AS event, z.name AS zone, e.starts_at
+      SELECT t.code, t.status, t.holder_name, t.holder_doc, e.title AS event, z.name AS zone, e.starts_at
       FROM tickets t JOIN events e ON e.id=t.event_id JOIN zones z ON z.id=t.zone_id
       WHERE t.code=${code} LIMIT 1`;
     if (!rows[0]) notFound();
@@ -18,7 +18,7 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
     return (
       <>
         <h1>{String(rows[0].event)}</h1>
-        <p className="muted">{String(rows[0].zone)} · {String(rows[0].holder_name || "")} · {String(rows[0].status)}</p>
+        <p className="muted">{String(rows[0].zone)} · Titular: <strong>{String(rows[0].holder_name || "")}</strong>{String(rows[0].holder_doc || "") ? ` · ${rows[0].holder_doc}` : ""} · {String(rows[0].status)}</p>
         <p><strong>{String(rows[0].code)}</strong></p>
         <div className="qr"><img src={qr} alt="QR entrada" width={220} height={220} /></div>
         <p className="muted">Muestra este QR en puerta. Contiene firma anti-falsificación.</p>

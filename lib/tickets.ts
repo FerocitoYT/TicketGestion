@@ -1,9 +1,14 @@
 import { createHmac, timingSafeEqual, randomBytes } from "crypto";
 import { authSecret } from "@/lib/secret";
 
-// Código público del ticket: TG-XXXXXX + firma HMAC para validar sin DB spoofing.
+// Código público del ticket: 8 caracteres estilo F8CL34RS (sin 0/O/1/I para evitar confusión en puerta)
+// + firma HMAC en el QR para detectar falsificaciones sin depender solo de la DB.
+const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 export function newTicketCode(): string {
-  return "TG-" + randomBytes(4).toString("hex").toUpperCase();
+  const b = randomBytes(8);
+  let code = "";
+  for (let i = 0; i < 8; i++) code += ALPHABET[b[i] % ALPHABET.length];
+  return code;
 }
 export function signTicket(code: string): string {
   return createHmac("sha256", authSecret()).update(`ticket|${code}`).digest("base64url").slice(0, 16);

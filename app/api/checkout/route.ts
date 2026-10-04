@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 import { getDb } from "@/lib/db";
 import { getStripe, siteUrl } from "@/lib/stripe";
 import { newTicketCode } from "@/lib/tickets";
+import { parseHolders } from "@/lib/holders";
 import { sendEmail } from "@/lib/email";
 
 function stripeConfigured() {
@@ -33,9 +34,10 @@ export async function POST(req: Request) {
   }
   const total = unit * qty;
   const idem = randomBytes(16).toString("hex");
+  const holders = parseHolders(String(form.get("holders") || ""), qty, buyerName);
   const created = await sql`
-    INSERT INTO orders (event_id, zone_id, buyer_name, buyer_email, qty, total_cents, idempotency_key)
-    VALUES (${eventId}, ${zoneId}, ${buyerName}, ${buyerEmail}, ${qty}, ${total}, ${idem}) RETURNING id`;
+    INSERT INTO orders (event_id, zone_id, buyer_name, buyer_email, qty, total_cents, idempotency_key, holders)
+    VALUES (${eventId}, ${zoneId}, ${buyerName}, ${buyerEmail}, ${qty}, ${total}, ${idem}, ${JSON.stringify(holders)}) RETURNING id`;
   const orderId = created[0].id as string;
   // MODO PRUEBAS: sin Stripe se simula el pago y se emiten los tickets directamente.
   if (!stripeConfigured()) {
@@ -48,8 +50,8 @@ export async function POST(req: Request) {
     }
     await sql`UPDATE orders SET status='paid' WHERE id=${orderId}`;
     for (let i = 0; i < qty; i++) {
-      await sql`INSERT INTO tickets (order_id, event_id, zone_id, code, holder_name)
-        VALUES (${orderId}, ${eventId}, ${zoneId}, ${newTicketCode()}, ${buyerName})`;
+      await sql`INSERT INTO tickets (order_id, event_id, zone_id, code, holder_name, holder_doc)
+        VALUES (${orderId}, ${eventId}, ${zoneId}, ${newTicketCode()}, ${holders[i].name}, ${holders[i].doc})`;
     }
     await sendEmail(
       buyerEmail,
