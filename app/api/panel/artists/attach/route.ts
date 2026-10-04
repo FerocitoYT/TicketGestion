@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { slugify, fetchWikiBio } from "@/lib/wiki";
 import { fetchCommonsPhoto } from "@/lib/commons";
+import { fetchAudioDbByMbid } from "@/lib/audiodb";
 
 const Attach = z.object({
   eventId: z.string().uuid(),
@@ -25,12 +26,16 @@ export async function POST(req: Request) {
   const b = Attach.safeParse(await req.json());
   if (!b.success) return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
   if (!(await findEvent(sql, b.data.eventId, s.orgId))) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
-  const wiki = await fetchWikiBio(b.data.name);
-  const fallback = wiki.photo ? "" : await fetchCommonsPhoto(b.data.name);
+  // Enriquecimiento (todo sin registro): TheAudioDB por MBID primero,
+  // Wikipedia como respaldo de bio/foto, Commons como última foto.
+  const [adb, wiki] = await Promise.all([fetchAudioDbByMbid(b.data.mbid), fetchWikiBio(b.data.name)]);
+  const photo = adb.photo || wiki.photo || (await fetchCommonsPhoto(b.data.name));
+  const bio = adb.bio || wiki.bio;
+  const genre = adb.genre || b.data.genre;
   const slug = slugify(b.data.name);
   const art = await sql`
     INSERT INTO artists (name, slug, photo_url, bio, genre, mbid)
-    VALUES (${b.data.name}, ${slug}, ${wiki.photo || fallback}, ${wiki.bio}, ${b.data.genre}, ${b.data.mbid})
+    VALUES (${b.data.name}, ${slug}, ${photo}, ${bio}, ${genre}, ${b.data.mbid})
     ON CONFLICT (mbid) DO UPDATE SET photo_url = CASE WHEN artists.photo_url = '' THEN EXCLUDED.photo_url ELSE artists.photo_url END,
       bio = CASE WHEN artists.bio = '' THEN EXCLUDED.bio ELSE artists.bio END,
       genre = CASE WHEN artists.genre = '' THEN EXCLUDED.genre ELSE artists.genre END
