@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getDb } from "@/lib/db";
+import { fetchTopSongs } from "@/lib/itunes";
 
 export const dynamic = "force-dynamic";
 
@@ -10,11 +11,14 @@ export default async function ArtistaPage({ params }: { params: Promise<{ slug: 
     const rows = await sql`SELECT * FROM artists WHERE slug=${slug} LIMIT 1`;
     if (!rows[0]) notFound();
     const a = rows[0];
-    const evs = await sql`
-      SELECT e.title, e.slug, e.starts_at, e.category, COALESCE(v.city,'') AS city,
-        (SELECT MIN(price_cents) FROM zones z WHERE z.event_id=e.id) AS min_price
-      FROM event_artists ea JOIN events e ON e.id=ea.event_id LEFT JOIN venues v ON v.id=e.venue_id
-      WHERE ea.artist_id=${a.id} AND e.status='published' ORDER BY e.starts_at ASC`;
+    const [evs, songs] = await Promise.all([
+      sql`
+        SELECT e.title, e.slug, e.starts_at, e.category, COALESCE(v.city,'') AS city,
+          (SELECT MIN(price_cents) FROM zones z WHERE z.event_id=e.id) AS min_price
+        FROM event_artists ea JOIN events e ON e.id=ea.event_id LEFT JOIN venues v ON v.id=e.venue_id
+        WHERE ea.artist_id=${a.id} AND e.status='published' ORDER BY e.starts_at ASC`,
+      fetchTopSongs(String(a.name)),
+    ]);
     return (
       <>
         <p className="crumbs"><a href="/">Inicio</a> / <a href="/artistas">Artistas</a> / {String(a.name)}</p>
@@ -31,6 +35,21 @@ export default async function ArtistaPage({ params }: { params: Promise<{ slug: 
             </div>
           </div>
         </section>
+        <div className="section-title"><h2>Top 5 canciones</h2></div>
+        {songs.length === 0 && <p className="muted">Sin datos de canciones por ahora.</p>}
+        {songs.map((s, i) => (
+          <div key={i} className="zone" style={{ marginBottom: 8 }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <strong style={{ fontSize: 22, color: "var(--tm-blue)", minWidth: 28 }}>{i + 1}</strong>
+              {s.artwork && <img src={s.artwork} alt="" width={52} height={52} style={{ borderRadius: 8 }} />}
+              <div>
+                <div><strong>{s.title}</strong></div>
+                <span className="muted">{s.album}</span>
+              </div>
+            </div>
+            {s.preview && <audio controls preload="none" src={s.preview} style={{ maxWidth: 240 }} />}
+          </div>
+        ))}
         <div className="section-title"><h2>Sus eventos</h2></div>
         {evs.length === 0 && <p className="muted">Sin eventos publicados por ahora.</p>}
         <div className="grid">
