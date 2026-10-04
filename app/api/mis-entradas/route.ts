@@ -6,10 +6,10 @@ export async function GET(req: Request) {
   if (!email.includes("@")) return NextResponse.json({ error: "Email inválido" }, { status: 400 });
   const sql = getDb();
   const rows = await sql`
-    SELECT t.code, t.status, t.holder_name, e.title AS event, z.name AS zone
+    SELECT t.code, t.status, t.holder_name, t.seat, e.title AS event, z.name AS zone
     FROM tickets t JOIN orders o ON o.id=t.order_id JOIN events e ON e.id=t.event_id JOIN zones z ON z.id=t.zone_id
     WHERE o.buyer_email=${email} AND o.status='paid' ORDER BY t.created_at DESC LIMIT 50`;
   return NextResponse.json({
-    tickets: rows.map((r) => ({ code: String(r.code), event: String(r.event), zone: String(r.zone), status: String(r.status), holder: String(r.holder_name || "") })),
+    tickets: rows.map((r) => ({ code: String(r.code), event: String(r.event), zone: String(r.zone), status: String(r.status), holder: String(r.holder_name || ""), seat: String(r.seat || "") })),
   });
 }

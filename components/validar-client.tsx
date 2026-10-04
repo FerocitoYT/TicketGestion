@@ -1,45 +1,79 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { BrowserQRCodeReader, type IScannerControls } from "@zxing/browser";
 
 type Scan = { result: string; gate: string; created_at: string };
 type Result = {
   ok?: boolean; error?: string; code?: string; event?: string; zone?: string;
-  holder?: string; doc?: string; buyer?: string; email?: string; scans?: Scan[];
+  holder?: string; doc?: string; seat?: string; buyer?: string; email?: string; scans?: Scan[];
 };
+type Evt = { id: string; title: string };
 
-export default function ValidarClient({ gate0 }: { gate0: string }) {
-  const [payload, setPayload] = useState("");
+// Pitido de confirmación (Web Audio, sin archivos): doble tono agudo = OK, grave = denegado.
+function beep(ok: boolean) {
+  try {
+    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    const play = (freq: number, at: number, dur: number) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = ok ? "sine" : "sawtooth";
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0.001, ctx.currentTime + at);
+      g.gain.exponentialRampToValueAtTime(0.5, ctx.currentTime + at + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + at + dur);
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start(ctx.currentTime + at);
+      o.stop(ctx.currentTime + at + dur + 0.05);
+    };
+    if (ok) { play(880, 0, 0.15); play(1320, 0.16, 0.3); }
+    else { play(220, 0, 0.45); }
+    setTimeout(() => ctx.close(), 1200);
+  } catch { /* sin audio, sigue */ }
+}
+
+export default function ValidarClient({ gate0, openEvents, closedEvents, isOwner }: {
+  gate0: string; openEvents: Evt[]; closedEvents: { id: string; title: string; reason: string }[]; isOwner: boolean;
+}) {
+  // Un solo evento operativo -> puerta fija, sin elegir (ritmo máximo, cero errores).
+  const [eventId, setEventId] = useState(openEvents[0]?.id || "");
   const [gate, setGate] = useState(gate0);
+  const [payload, setPayload] = useState("");
   const [res, setRes] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
   const [count, setCount] = useState({ ok: 0, no: 0 });
   const [camOn, setCamOn] = useState(false);
   const [camError, setCamError] = useState("");
-  const [camSupported, setCamSupported] = useState(false);
+  const [devices, setDevices] = useState<{ deviceId: string; label: string }[]>([]);
+  const [deviceId, setDeviceId] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const controlsRef = useRef<IScannerControls | null>(null);
   const busyRef = useRef(false);
+  const lastRef = useRef<{ code: string; at: number }>({ code: "", at: 0 });
 
-  useEffect(() => {
-    setCamSupported(typeof window !== "undefined" && "BarcodeDetector" in window);
-    return () => stopCam();
-  }, []);
+  useEffect(() => () => stopCam(), []);
 
-  async function validate(code: string) {
-    if (busyRef.current || !code.trim()) return;
+  async function validate(code: string, ev: string) {
+    if (busyRef.current || !code.trim() || !ev) return;
     busyRef.current = true;
     setBusy(true);
-    setRes(null);
     try {
       const r = await fetch("/api/validar", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ payload: code.trim(), gate }),
+        body: JSON.stringify({ payload: code.trim(), gate, eventId: ev }),
       });
       const j = (await r.json()) as Result;
       setRes(j);
       setCount((c) => ({ ok: c.ok + (j.ok ? 1 : 0), no: c.no + (j.ok ? 0 : 1) }));
-      if (j.ok) setPayload("");
+      beep(!!j.ok);
+      if (j.ok) {
+        setPayload("");
+        // La confirmación verde se cierra sola para seguir con la fila.
+        setTimeout(() => setRes((cur) => (cur === j ? null : cur)), 2600);
+      }
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -48,85 +82,117 @@ export default function ValidarClient({ gate0 }: { gate0: string }) {
 
   async function startCam() {
     setCamError("");
+    stopCam();
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-        audio: false,
-      });
-      streamRef.current = stream;
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error("sin cámara");
+      const devs = await BrowserQRCodeReader.listVideoInputDevices();
+      setDevices(devs.map((d) => ({ deviceId: d.deviceId, label: d.label || "Cámara" })));
+      // Trasera por defecto (móviles): última suele ser la trasera.
+      const chosen = deviceId || devs[devs.length - 1]?.deviceId || devs[0]?.deviceId || undefined;
+      if (chosen) setDeviceId(chosen);
+      const reader = new BrowserQRCodeReader();
       const video = videoRef.current;
       if (!video) return;
-      video.srcObject = stream;
-      await video.play();
+      const controls = await reader.decodeFromVideoDevice(chosen, video, (result) => {
+        if (!result) return;
+        const value = result.getText();
+        const now = Date.now();
+        // La cámara sigue encendida para el siguiente: ignora el mismo QR 3s.
+        if (value === lastRef.current.code && now - lastRef.current.at < 3000) return;
+        lastRef.current = { code: value, at: now };
+        setPayload(value);
+        validate(value, eventId || openEvents[0]?.id || "");
+      });
+      controlsRef.current = controls;
       setCamOn(true);
-      const Detector = (window as unknown as { BarcodeDetector: new (o: object) => { detect(v: HTMLVideoElement): Promise<{ rawValue: string }[]> } }).BarcodeDetector;
-      const detector = new Detector({ formats: ["qr_code"] });
-      const loop = async () => {
-        if (!streamRef.current) return;
-        try {
-          const found = await detector.detect(video);
-          if (found[0]?.rawValue) {
-            const value = found[0].rawValue;
-            stopCam();
-            setPayload(value);
-            await validate(value);
-            return;
-          }
-        } catch { /* frame sin QR, sigue */ }
-        if (streamRef.current) requestAnimationFrame(loop);
-      };
-      requestAnimationFrame(loop);
     } catch {
-      setCamError("No se pudo abrir la cámara. Revisa los permisos del navegador o usa el código manual.");
+      setCamError("No se pudo abrir la cámara. Permite el acceso en el navegador (HTTPS) o usa el código manual.");
     }
   }
 
   function stopCam() {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
+    try { controlsRef.current?.stop(); } catch { /* noop */ }
+    controlsRef.current = null;
     setCamOn(false);
   }
 
+  if (openEvents.length === 0) {
+    return (
+      <>
+        <h1>Control de acceso</h1>
+        <p className="alert err">
+          {isOwner
+            ? "No hay eventos con control operativo. Publica un evento y fija su hora de fin en el panel."
+            : "No tienes ningún evento asignado con control operativo (o ya finalizaron). Pide a tu responsable que te asigne en el panel."}
+        </p>
+        {closedEvents.length > 0 && (
+          <>
+            <h3>Finalizados / no operativos</h3>
+            <ul>{closedEvents.map((e) => <li key={e.id}>{e.title} — {e.reason}</li>)}</ul>
+          </>
+        )}
+      </>
+    );
+  }
+
+  const current = openEvents.find((e) => e.id === eventId) || openEvents[0];
   return (
     <>
       <h1>Control de acceso</h1>
-      <p className="muted">Escanea el QR con la cámara o introduce el código. Comprueba que el titular coincide con el DNI. Sesión: ✅ {count.ok} · ⛔ {count.no}</p>
+      {openEvents.length === 1 ? (
+        <p><span className="badge">Puerta: {current.title}</span></p>
+      ) : (
+        <label style={{ maxWidth: 480, display: "block" }}>Evento en puerta
+          <select value={eventId} onChange={(e) => setEventId(e.target.value)}>
+            {openEvents.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
+          </select>
+        </label>
+      )}
+      <p className="muted">Apunta al QR: se valida solo, sin tocar nada. Sesión: ✅ {count.ok} · ⛔ {count.no}</p>
       <div className="row" style={{ marginBottom: 12 }}>
-        {camSupported ? (
-          camOn
-            ? <button className="btn btn-blue" onClick={stopCam}>Detener cámara</button>
-            : <button className="btn btn-blue" onClick={startCam}>Escanear QR con cámara</button>
-        ) : (
-          <span className="badge">Este navegador no soporta escaneo por cámara: usa el código manual</span>
+        {camOn
+          ? <button className="btn btn-blue" onClick={stopCam}>Detener cámara</button>
+          : <button className="btn btn-blue" onClick={startCam}>Activar cámara</button>}
+        {devices.length > 1 && (
+          <select value={deviceId} onChange={(e) => setDeviceId(e.target.value)} style={{ maxWidth: 220 }}>
+            {devices.map((d) => <option key={d.deviceId} value={d.deviceId}>{d.label}</option>)}
+          </select>
         )}
       </div>
       {camError && <p className="alert err">{camError}</p>}
-      {camOn && <video ref={videoRef} style={{ width: "100%", maxWidth: 480, borderRadius: 12, background: "#000" }} playsInline muted />}
-      {!camOn && <video ref={videoRef} style={{ display: "none" }} playsInline muted />}
-      <form onSubmit={(e) => { e.preventDefault(); validate(payload); }} className="form" style={{ marginTop: 12 }}>
-        <label>Código del QR<input value={payload} onChange={(e) => setPayload(e.target.value)} required placeholder="F8CL34RS.firma" autoFocus={!camOn} /></label>
+      <video ref={videoRef} style={{ width: "100%", maxWidth: 480, borderRadius: 12, background: "#000", display: camOn ? "block" : "none" }} playsInline muted />
+      <form onSubmit={(e) => { e.preventDefault(); validate(payload, eventId || openEvents[0].id); }} className="form" style={{ marginTop: 12 }}>
+        <label>Código manual (QR dañado o pistola USB)<input value={payload} onChange={(e) => setPayload(e.target.value)} placeholder="F8CL34RS.firma" /></label>
         <label>Puerta<input value={gate} onChange={(e) => setGate(e.target.value)} /></label>
         <button disabled={busy}>{busy ? "Validando…" : "Validar código"}</button>
       </form>
       {res && (
-        <div className="alert" style={{ background: res.ok ? "#e3f6ec" : "#fde7ec", border: `1px solid ${res.ok ? "#b6e3c9" : "#f3b7c3" }`, marginTop: 14 }}>
-          <h2 style={{ margin: "0 0 8px" }}>{res.ok ? "✅ ACCESO PERMITIDO" : "⛔ ACCESO DENEGADO"}</h2>
-          {res.error && <p><strong>{res.error}</strong></p>}
-          {res.code && (
-            <table>
-              <tbody>
-                <tr><th>Código</th><td><strong>{res.code}</strong></td></tr>
-                <tr><th>Titular</th><td><strong>{res.holder}</strong>{res.doc ? ` · ${res.doc}` : ""}</td></tr>
-                <tr><th>Evento</th><td>{res.event}</td></tr>
-                <tr><th>Zona</th><td>{res.zone}</td></tr>
-                <tr><th>Comprador</th><td>{res.buyer} · {res.email}</td></tr>
-              </tbody>
-            </table>
-          )}
-          {!res.ok && res.code && <p className="muted">Posible reventa o QR copiado: retén la entrada y avisa al responsable.</p>}
-          {res.scans && res.scans.length > 0 && (
-            <p className="muted">Intentos previos: {res.scans.map((s) => `${s.result}@${s.gate}`).join(", ")}</p>
-          )}
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center",
+          background: res.ok ? "#0a7a3d" : "#b31217", color: "#fff", padding: 24, textAlign: "center",
+        }}>
+          <div style={{ maxWidth: 560 }}>
+            <div style={{ fontSize: 64 }}>{res.ok ? "✓" : "✕"}</div>
+            <h2 style={{ fontSize: 40, margin: "6px 0" }}>{res.ok ? "VALIDACIÓN CORRECTA" : "ACCESO DENEGADO"}</h2>
+            {res.error && !res.ok && <p style={{ fontSize: 18 }}><strong>{res.error}</strong></p>}
+            {res.code && (
+              <div style={{ fontSize: 19, lineHeight: 1.7, marginTop: 8 }}>
+                <div><strong>{res.holder}</strong>{res.doc ? ` · ${res.doc}` : ""}</div>
+                <div>{res.event} · {res.zone}</div>
+                {res.seat && <div>Asiento: <strong>{res.seat}</strong></div>}
+                <div style={{ opacity: 0.85, fontSize: 15 }}>{res.code}</div>
+              </div>
+            )}
+            {!res.ok && res.code && <p style={{ opacity: 0.9 }}>Posible reventa o QR copiado: retén la entrada y avisa al responsable.</p>}
+            <button onClick={() => setRes(null)} style={{ marginTop: 16, background: "#fff", color: res.ok ? "#0a7a3d" : "#b31217", border: 0, borderRadius: 99, padding: "12px 34px", fontWeight: 800, fontSize: 16 }}>
+              {res.ok ? "Siguiente" : "Cerrar"}
+            </button>
+          </div>
+        </div>
+      )}
+      {res && !res.code && (
+        <div className="alert err" style={{ marginTop: 14 }}>
+          <p><strong>{res.error}</strong></p>
         </div>
       )}
     </>

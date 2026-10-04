@@ -52,8 +52,8 @@ export async function POST(req: Request) {
     }
     await sql`UPDATE orders SET status='paid' WHERE id=${orderId}`;
     for (let i = 0; i < qty; i++) {
-      await sql`INSERT INTO tickets (order_id, event_id, zone_id, code, holder_name, holder_doc)
-        VALUES (${orderId}, ${eventId}, ${zoneId}, ${newTicketCode()}, ${holders[i].name}, ${holders[i].doc})`;
+      await sql`INSERT INTO tickets (order_id, event_id, zone_id, code, holder_name, holder_doc, seat)
+        VALUES (${orderId}, ${eventId}, ${zoneId}, ${newTicketCode()}, ${holders[i].name}, ${holders[i].doc}, ${holders[i].seat})`;
     }
     await sendEmail(
       buyerEmail,

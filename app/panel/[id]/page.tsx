@@ -14,6 +14,15 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
   const zones = await sql`SELECT * FROM zones WHERE event_id=${id} ORDER BY price_cents ASC`;
   const orders = await sql`SELECT * FROM orders WHERE event_id=${id} ORDER BY created_at DESC LIMIT 100`;
   const scans = await sql`SELECT s.*, t.code FROM scans s JOIN tickets t ON t.id=s.ticket_id WHERE s.event_id=${id} ORDER BY s.created_at DESC LIMIT 100`;
+  const staff = await sql`SELECT u.id, u.name, u.email, m.role, (es.user_id IS NOT NULL) AS assigned
+    FROM memberships m JOIN users u ON u.id=m.user_id LEFT JOIN event_staff es ON es.user_id=u.id AND es.event_id=${id}
+    WHERE m.org_id=${s.orgId} ORDER BY u.name`;
+  const toLocal = (v: unknown) => {
+    if (!v) return "";
+    const d = new Date(String(v));
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
   return (
     <>
       <a href="/panel">← Volver</a>
@@ -45,6 +54,37 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
           <input name="maxUses" type="number" placeholder="Usos máx (0=∞)" defaultValue={0} />
         </div>
         <button formAction="/api/panel/promos">Crear promo</button>
+      </form>
+      <h2>Control de acceso del evento</h2>
+      <p className="muted">
+        Control operativo: {String(ev[0].status) === "published" && !ev[0].access_closed ? "SÍ" : "NO"}
+        {ev[0].access_closed ? " (cerrado a mano)" : ""}
+        {ev[0].ends_at ? ` · cierra ${new Date(String(ev[0].ends_at)).toLocaleString("es-ES")} + ${String(ev[0].access_grace_minutes ?? 120)} min de margen` : " · sin hora de fin (solo cierre manual)"}
+      </p>
+      <form action="/api/panel/events/schedule" method="post" className="form">
+        <input type="hidden" name="id" value={id} />
+        <div className="row">
+          <label>Hora de fin<input name="endsAt" type="datetime-local" defaultValue={toLocal(ev[0].ends_at)} /></label>
+          <label>Margen tras fin (min)<input name="grace" type="number" min={0} max={1440} defaultValue={String(ev[0].access_grace_minutes ?? 120)} /></label>
+        </div>
+        <button formAction="/api/panel/events/schedule">Guardar horario de control</button>
+      </form>
+      <div className="row" style={{ marginTop: 10 }}>
+        {!ev[0].access_closed
+          ? <form action="/api/panel/events/finish" method="post"><input type="hidden" name="id" value={id} /><button>Finalizar control ahora</button></form>
+          : <form action="/api/panel/events/reopen" method="post"><input type="hidden" name="id" value={id} /><button>Reabrir control</button></form>}
+      </div>
+      <h2>Personal de puerta asignado</h2>
+      <p className="muted">Solo este personal puede validar entradas de este evento. El propietario siempre puede.</p>
+      <form action="/api/panel/event-staff" method="post" className="form">
+        <input type="hidden" name="eventId" value={id} />
+        {staff.map((m) => (
+          <label key={String(m.id)} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input type="checkbox" name="userIds" value={String(m.id)} defaultChecked={Boolean(m.assigned)} style={{ width: "auto" }} />
+            {String(m.name)} · {String(m.email)} · {String(m.role)}
+          </label>
+        ))}
+        <button formAction="/api/panel/event-staff">Guardar asignación</button>
       </form>
       <h2>Últimos pedidos</h2>
       <table><thead><tr><th>Email</th><th>Cant</th><th>Total</th><th>Estado</th></tr></thead>

@@ -84,7 +84,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
                 <label>Cantidad<input name="qty" type="number" min={1} max={10} defaultValue={1} required /></label>
                 <label>Código promo<input name="promo" placeholder="EARLY10" /></label>
               </div>
-              <label>Titulares (uno por línea: “Nombre | DNI”)<textarea name="holders" rows={2} placeholder="Ana López | 12345678A" /></label>
+              <label>Titulares (uno por línea: “Nombre | DNI | Asiento opcional”)<textarea name="holders" rows={2} placeholder="Ana López | 12345678A | F5-A12" /></label>
               {simulated ? (
                 <>
                   <p className="alert ok">Modo pruebas: pago simulado. Tarjeta 4242 4242 4242 4242.</p>

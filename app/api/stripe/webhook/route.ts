@@ -34,10 +34,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
     await sql`UPDATE orders SET status='paid' WHERE id=${orderId}`;
-    const holders = (Array.isArray(order.holders) ? order.holders : []) as { name?: string; doc?: string }[];
+    const holders = (Array.isArray(order.holders) ? order.holders : []) as { name?: string; doc?: string; seat?: string }[];
     for (let i = 0; i < Number(order.qty); i++) {
-      await sql`INSERT INTO tickets (order_id, event_id, zone_id, code, holder_name, holder_doc)
-        VALUES (${orderId}, ${String(order.event_id)}, ${String(order.zone_id)}, ${newTicketCode()}, ${String(holders[i]?.name || order.buyer_name)}, ${String(holders[i]?.doc || "")})`;
+      await sql`INSERT INTO tickets (order_id, event_id, zone_id, code, holder_name, holder_doc, seat)
+        VALUES (${orderId}, ${String(order.event_id)}, ${String(order.zone_id)}, ${newTicketCode()}, ${String(holders[i]?.name || order.buyer_name)}, ${String(holders[i]?.doc || "")}, ${String(holders[i]?.seat || "")})`;
     }
     const ev = await sql`SELECT title FROM events WHERE id=${String(order.event_id)} LIMIT 1`;
     const appUrl = baseUrl(req);
