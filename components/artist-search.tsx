@@ -1,29 +1,29 @@
 "use client";
 import { useState } from "react";
 
-type Tm = { tmId: string; name: string; image: string; genre: string; segment: string };
+type Mb = { mbid: string; name: string; info: string; area: string; genre: string };
 type Art = { id: string; name: string; photo: string };
 
 export default function ArtistSearch({ eventId, attached }: { eventId: string; attached: Art[] }) {
   const [q, setQ] = useState("");
-  const [res, setRes] = useState<Tm[]>([]);
+  const [res, setRes] = useState<Mb[]>([]);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [mName, setMName] = useState("");
 
   async function search(e: React.FormEvent) {
     e.preventDefault();
-    setMsg("Buscando…");
+    setMsg("Buscando en MusicBrainz…");
     const r = await fetch("/api/panel/artists/search?q=" + encodeURIComponent(q));
     const j = await r.json();
-    setRes(j.attractions || []);
-    setMsg(j.error || (j.attractions?.length ? "" : "Sin resultados"));
+    setRes(j.artists || []);
+    setMsg(j.error || (j.artists?.length ? "" : "Sin resultados en España"));
   }
-  async function attach(a: Tm) {
+  async function attach(a: Mb) {
     setBusy(true);
     const r = await fetch("/api/panel/artists/attach", {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ eventId, tmId: a.tmId, name: a.name, image: a.image, genre: a.genre || a.segment }),
+      body: JSON.stringify({ eventId, mbid: a.mbid, name: a.name, genre: a.genre }),
     });
     const j = await r.json();
     setBusy(false);
@@ -61,15 +61,15 @@ export default function ArtistSearch({ eventId, attached }: { eventId: string; a
         </div>
       )}
       <form onSubmit={search} className="row">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar artista en Ticketmaster…" style={{ maxWidth: 300 }} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar artista español…" style={{ maxWidth: 300 }} />
         <button disabled={busy}>Buscar</button>
       </form>
       {msg && <p className="muted">{msg}</p>}
       {res.map((a) => (
-        <div key={a.tmId} className="zone" style={{ marginTop: 8 }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            {a.image && <img src={a.image} alt={a.name} width={44} height={44} style={{ borderRadius: 8, objectFit: "cover" }} />}
-            <div><strong>{a.name}</strong><br /><span className="muted">{a.genre || a.segment}</span></div>
+        <div key={a.mbid} className="zone" style={{ marginTop: 8 }}>
+          <div>
+            <div><strong>{a.name}</strong></div>
+            <span className="muted">{[a.info, a.genre, a.area].filter(Boolean).join(" · ")}</span>
           </div>
           <button onClick={() => attach(a)} disabled={busy}>Añadir</button>
         </div>
