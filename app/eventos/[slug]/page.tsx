@@ -81,7 +81,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
                 </select>
               </label>
               <div className="row">
-                <label>Cantidad<input name="qty" type="number" min={1} max={10} defaultValue={1} required /></label>
+                <label>Cantidad (máx {String(Number((event as Record<string, unknown>).max_per_order ?? 10))} por compra)<input name="qty" type="number" min={1} max={Number((event as Record<string, unknown>).max_per_order ?? 10)} defaultValue={1} required /></label>
                 <label>Código promo<input name="promo" placeholder="EARLY10" /></label>
               </div>
               <label>Titulares (uno por línea: “Nombre | DNI | Asiento opcional”)<textarea name="holders" rows={2} placeholder="Ana López | 12345678A | F5-A12" /></label>

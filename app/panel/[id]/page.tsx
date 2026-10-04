@@ -75,6 +75,16 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
           ? <form action="/api/panel/events/finish" method="post"><input type="hidden" name="id" value={id} /><button>Finalizar control ahora</button></form>
           : <form action="/api/panel/events/reopen" method="post"><input type="hidden" name="id" value={id} /><button>Reabrir control</button></form>}
       </div>
+      <h2>Límites y aforo</h2>
+      <p className="muted">Por compra: {String(ev[0].max_per_order ?? 10)} · Por persona: {Number(ev[0].max_per_buyer ?? 0) > 0 ? String(ev[0].max_per_buyer) : "sin límite"} · Aforo zonas: {zones.reduce((a, z) => a + Number(z.capacity), 0)} ({zones.reduce((a, z) => a + Number(z.sold), 0)} vendidas)</p>
+      <form action="/api/panel/events/limits" method="post" className="form">
+        <input type="hidden" name="id" value={id} />
+        <div className="row">
+          <label>Máx por compra<input name="maxPerOrder" type="number" min={1} max={50} defaultValue={String(ev[0].max_per_order ?? 10)} /></label>
+          <label>Máx por persona (0 = sin límite)<input name="maxPerBuyer" type="number" min={0} max={100} defaultValue={String(ev[0].max_per_buyer ?? 0)} /></label>
+        </div>
+        <button formAction="/api/panel/events/limits">Guardar límites</button>
+      </form>
       <h2>Personal de puerta asignado</h2>
       <p className="muted">Solo este personal puede validar entradas de este evento. El propietario siempre puede.</p>
       <form action="/api/panel/event-staff" method="post" className="form">
