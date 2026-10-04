@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { getDb } from "@/lib/db";
 import { getStripe, siteUrl } from "@/lib/stripe";
+import { newTicketCode } from "@/lib/tickets";
+import { sendEmail } from "@/lib/email";
+
+function stripeConfigured() {
+  const k = process.env.STRIPE_SECRET_KEY || "";
+  return k.startsWith("sk_") && !k.includes("replace_me");
+}
 
 export async function POST(req: Request) {
   const form = await req.formData();
@@ -30,6 +37,27 @@ export async function POST(req: Request) {
     INSERT INTO orders (event_id, zone_id, buyer_name, buyer_email, qty, total_cents, idempotency_key)
     VALUES (${eventId}, ${zoneId}, ${buyerName}, ${buyerEmail}, ${qty}, ${total}, ${idem}) RETURNING id`;
   const orderId = created[0].id as string;
+  // MODO PRUEBAS: sin Stripe se simula el pago y se emiten los tickets directamente.
+  if (!stripeConfigured()) {
+    const upd = await sql`
+      UPDATE zones SET sold = sold + ${qty}
+      WHERE id=${zoneId} AND sold + ${qty} <= capacity RETURNING id`;
+    if (!upd[0]) {
+      await sql`UPDATE orders SET status='cancelled' WHERE id=${orderId}`;
+      return NextResponse.json({ error: "Sin stock suficiente" }, { status: 400 });
+    }
+    await sql`UPDATE orders SET status='paid' WHERE id=${orderId}`;
+    for (let i = 0; i < qty; i++) {
+      await sql`INSERT INTO tickets (order_id, event_id, zone_id, code, holder_name)
+        VALUES (${orderId}, ${eventId}, ${zoneId}, ${newTicketCode()}, ${buyerName})`;
+    }
+    await sendEmail(
+      buyerEmail,
+      `Tus entradas (simulado): ${String(zones[0].title)}`,
+      `<p>Pago <strong>simulado</strong>, no se ha cargado nada.</p><p>Recupera tus QR en ${siteUrl()}/mis-entradas con este email.</p>`
+    );
+    return NextResponse.redirect(`${siteUrl()}/compra-ok?order=${orderId}`, 303);
+  }
   const stripe = getStripe();
   const session = await stripe.checkout.sessions.create({
     mode: "payment",

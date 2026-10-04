@@ -24,6 +24,8 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   if (!data) notFound();
   const { event, zones } = data;
   const available = (z: Record<string, unknown>) => Number(z.capacity) - Number(z.sold);
+  const k = process.env.STRIPE_SECRET_KEY || "";
+  const simulated = !(k.startsWith("sk_") && !k.includes("replace_me"));
   return (
     <>
       <span className="badge">{String(event.category)} · {new Date(String(event.starts_at)).toLocaleString("es-ES")}</span>
@@ -48,7 +50,19 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
           <label>Cantidad<input name="qty" type="number" min={1} max={10} defaultValue={1} required /></label>
           <label>Código promo (opcional)<input name="promo" placeholder="EARLY10" /></label>
         </div>
-        <button formAction="/api/checkout">Comprar con Stripe</button>
+        {simulated ? (
+          <>
+            <p className="alert ok">Modo pruebas: pago simulado, no se carga nada. Tarjeta de prueba: 4242 4242 4242 4242, cualquier fecha/CVC.</p>
+            <div className="row">
+              <label>Nº tarjeta<input defaultValue="4242 4242 4242 4242" inputMode="numeric" /></label>
+              <label>Caducidad<input defaultValue="12/28" /></label>
+              <label>CVC<input defaultValue="123" /></label>
+            </div>
+            <button formAction="/api/checkout">Pagar (simulado)</button>
+          </>
+        ) : (
+          <button formAction="/api/checkout">Comprar con Stripe</button>
+        )}
       </form>
     </>
   );
