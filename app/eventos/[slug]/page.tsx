@@ -36,7 +36,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
           <span className="badge" style={{ background: "rgba(255,255,255,.25)", color: "#fff" }}>
             {String(event.category)} · {dt.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}
           </span>
-          <h1 style={{ margin: "10px 0 6px", fontSize: 38 }}>{String(event.title)}</h1>
+          <h1 className="event-title" style={{ margin: "10px 0 6px", fontSize: 38 }}>{String(event.title)}</h1>
           <p style={{ margin: 0, opacity: 0.93 }}>
             {dt.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })} · {String(event.venue)}
             {String(event.city) ? ` · ${event.city}` : ""}{String(event.address) ? ` · ${event.address}` : ""}

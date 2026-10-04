@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import SiteHeader from "@/components/site-header";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,22 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es">
       <body>
-        <header className="topbar">
-          <a className="brand" href="/">Ticket<span>Gestion</span></a>
-          <form className="searchbar" action="/eventos">
-            <input name="q" placeholder="Busca artista, equipo o recinto…" />
-            <button>Buscar</button>
-          </form>
-          <div className="spacer" />
-          <nav>
-            {CATS.slice(0, 3).map(([v, l]) => (
-              <a key={v} href={`/eventos?cat=${v}`}>{l}</a>
-            ))}
-            <a href="/mis-entradas">Mis entradas</a>
-            <a href="/panel">Vende con nosotros</a>
-            <a href="/validar" className="btn-small">Acceso personal</a>
-          </nav>
-        </header>
+        <SiteHeader />
         <main className="wrap">{children}</main>
         <footer className="foot">
           <div>
