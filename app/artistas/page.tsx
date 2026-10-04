@@ -2,30 +2,36 @@ import { getDb } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export default async function Artistas({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+export default async function Artistas({ searchParams }: { searchParams: Promise<{ q?: string; g?: string }> }) {
   const sp = await searchParams;
   let artists: { name: string; slug: string; photo_url: string; genre: string; n: number }[] = [];
   try {
     const sql = getDb();
     const rows = await sql`
-      SELECT a.name, a.slug, a.photo_url, a.genre, COUNT(ea.event_id) AS n
+      SELECT a.name, a.slug, a.photo_url, a.genre, COUNT(e.id) FILTER (WHERE e.status='published') AS n
       FROM artists a LEFT JOIN event_artists ea ON ea.artist_id=a.id
-      LEFT JOIN events e ON e.id=ea.event_id AND e.status='published'
-      GROUP BY a.id ORDER BY a.name ASC LIMIT 200`;
+      LEFT JOIN events e ON e.id=ea.event_id
+      GROUP BY a.id ORDER BY a.name ASC LIMIT 500`;
     artists = rows as unknown as typeof artists;
   } catch {
     return <p className="muted">Configura DATABASE_URL para ver artistas.</p>;
   }
+  const genres = [...new Set(artists.map((a) => a.genre).filter(Boolean))].sort();
   if (sp.q) {
     const q = sp.q.toLowerCase();
     artists = artists.filter((a) => a.name.toLowerCase().includes(q));
   }
+  if (sp.g) artists = artists.filter((a) => a.genre === sp.g);
   return (
     <>
       <p className="crumbs"><a href="/">Inicio</a> / Artistas</p>
-      <h1>Artistas</h1>
+      <h1>Artistas en España ({artists.length})</h1>
       <form className="row" action="/artistas">
-        <input name="q" placeholder="Busca artista…" defaultValue={sp.q || ""} style={{ maxWidth: 300 }} />
+        <input name="q" placeholder="Busca artista…" defaultValue={sp.q || ""} style={{ maxWidth: 260 }} />
+        <select name="g" defaultValue={sp.g || ""} style={{ maxWidth: 200 }}>
+          <option value="">Todos los géneros</option>
+          {genres.map((g) => <option key={g} value={g}>{g}</option>)}
+        </select>
         <button className="btn btn-blue">Buscar</button>
       </form>
       <div className="grid">
