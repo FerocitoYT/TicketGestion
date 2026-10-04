@@ -10,7 +10,8 @@ async function getEvent(slug: string) {
     FROM events e LEFT JOIN venues v ON v.id=e.venue_id WHERE e.slug=${slug} LIMIT 1`;
   if (!ev[0]) return null;
   const zones = await sql`SELECT * FROM zones WHERE event_id=${ev[0].id} ORDER BY price_cents ASC`;
-  return { event: ev[0] as Record<string, unknown>, zones: zones as Record<string, unknown>[] };
+  const artists = await sql`SELECT a.name, a.slug FROM event_artists ea JOIN artists a ON a.id=ea.artist_id WHERE ea.event_id=${ev[0].id} ORDER BY a.name`;
+  return { event: ev[0] as Record<string, unknown>, zones: zones as Record<string, unknown>[], artists: artists as unknown as { name: string; slug: string }[] };
 }
 
 export default async function EventPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -22,7 +23,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
     return <p className="muted">Configura DATABASE_URL para ver eventos.</p>;
   }
   if (!data) notFound();
-  const { event, zones } = data;
+  const { event, zones, artists } = data;
   const available = (z: Record<string, unknown>) => Number(z.capacity) - Number(z.sold);
   const totalLeft = zones.reduce((a, z) => a + Math.max(0, available(z)), 0);
   const k = process.env.STRIPE_SECRET_KEY || "";
@@ -46,6 +47,11 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
           <div>
             <h2>Sobre el evento</h2>
             <p>{String(event.description || "Toda la información del evento, accesos y horarios.")}</p>
+            {artists.length > 0 && (
+              <div className="row" style={{ margin: "10px 0" }}>
+                {artists.map((a) => <a key={a.slug} className="badge" href={`/artistas/${a.slug}`}>{a.name}</a>)}
+              </div>
+            )}
             <div className="row" style={{ margin: "14px 0" }}>
               <span className="badge">{totalLeft} entradas disponibles</span>
               <span className="badge">QR nominativo</span>

@@ -35,6 +35,7 @@ export default function SiteHeader() {
             <a key={v} href={`/eventos?cat=${v}`}>{l}</a>
           ))}
           {!isScanner && <a href="/mis-entradas">Mis entradas</a>}
+          <a href="/artistas">Artistas</a>
           {isScanner && <a href="/validar">Validar</a>}
           {isScanner && <a href="/mis-registros">Mis registros</a>}
           {isStaff && <a href="/panel">Panel</a>}
@@ -52,6 +53,7 @@ export default function SiteHeader() {
         {me && <p className="drawer-sec">{me.name} · {role === "owner" ? "Propietario" : role === "staff" ? "Equipo" : "Puerta"}</p>}
         <p className="drawer-sec">Explorar</p>
         <a href="/eventos" onClick={() => setOpen(false)}>Toda la agenda</a>
+        <a href="/artistas" onClick={() => setOpen(false)}>Artistas</a>
         {CATS.map(([v, l]) => (
           <a key={v} href={`/eventos?cat=${v}`} onClick={() => setOpen(false)}>{l}</a>
         ))}

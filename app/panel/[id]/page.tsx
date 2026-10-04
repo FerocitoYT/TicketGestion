@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
+import ArtistSearch from "@/components/artist-search";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
   const zones = await sql`SELECT * FROM zones WHERE event_id=${id} ORDER BY price_cents ASC`;
   const orders = await sql`SELECT * FROM orders WHERE event_id=${id} ORDER BY created_at DESC LIMIT 100`;
   const scans = await sql`SELECT s.*, t.code FROM scans s JOIN tickets t ON t.id=s.ticket_id WHERE s.event_id=${id} ORDER BY s.created_at DESC LIMIT 100`;
+  const attached = await sql`SELECT a.id, a.name, a.photo_url AS photo FROM event_artists ea JOIN artists a ON a.id=ea.artist_id WHERE ea.event_id=${id} ORDER BY a.name`;
   const staff = await sql`SELECT u.id, u.name, u.email, m.role, (es.user_id IS NOT NULL) AS assigned
     FROM memberships m JOIN users u ON u.id=m.user_id LEFT JOIN event_staff es ON es.user_id=u.id AND es.event_id=${id}
     WHERE m.org_id=${s.orgId} ORDER BY u.name`;
@@ -97,6 +99,8 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
         ))}
         <button formAction="/api/panel/event-staff">Guardar asignación</button>
       </form>
+      <h2>Artistas del evento</h2>
+      <ArtistSearch eventId={id} attached={attached as unknown as { id: string; name: string; photo: string }[]} />
       <h2>Últimos pedidos</h2>
       <table><thead><tr><th>Email</th><th>Cant</th><th>Total</th><th>Estado</th></tr></thead>
         <tbody>{orders.map((o) => <tr key={o.id as string}><td>{String(o.buyer_email)}</td><td>{String(o.qty)}</td><td>{(Number(o.total_cents) / 100).toFixed(2)} €</td><td>{String(o.status)}</td></tr>)}</tbody>
