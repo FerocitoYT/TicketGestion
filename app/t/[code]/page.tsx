@@ -7,24 +7,43 @@ export const dynamic = "force-dynamic";
 
 export default async function TicketPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
+  let row: Record<string, unknown> | undefined;
   try {
     const sql = getDb();
     const rows = await sql`
       SELECT t.code, t.status, t.holder_name, t.holder_doc, e.title AS event, z.name AS zone, e.starts_at
       FROM tickets t JOIN events e ON e.id=t.event_id JOIN zones z ON z.id=t.zone_id
       WHERE t.code=${code} LIMIT 1`;
-    if (!rows[0]) notFound();
-    const qr = await QRCode.toDataURL(ticketQrPayload(rows[0].code as string));
+    row = rows[0] as Record<string, unknown> | undefined;
+  } catch (e) {
+    console.error("ticket-load", e);
     return (
       <>
-        <h1>{String(rows[0].event)}</h1>
-        <p className="muted">{String(rows[0].zone)} · Titular: <strong>{String(rows[0].holder_name || "")}</strong>{String(rows[0].holder_doc || "") ? ` · ${rows[0].holder_doc}` : ""} · {String(rows[0].status)}</p>
-        <p><strong>{String(rows[0].code)}</strong></p>
-        <div className="qr"><img src={qr} alt="QR entrada" width={220} height={220} /></div>
-        <p className="muted">Muestra este QR en puerta. Contiene firma anti-falsificación.</p>
+        <h1>Entrada no disponible</h1>
+        <p className="alert err">No se pudo conectar con la base de datos. Revisa la conexión o inténtalo de nuevo.</p>
       </>
     );
-  } catch {
-    return <p className="muted">No se pudo cargar la entrada.</p>;
   }
+  if (!row) notFound();
+  let qr: string;
+  try {
+    qr = await QRCode.toDataURL(ticketQrPayload(row.code as string));
+  } catch (e) {
+    console.error("ticket-qr", e);
+    return (
+      <>
+        <h1>{String(row.event)}</h1>
+        <p className="alert err">No se pudo generar el QR. Tu código es <strong>{String(row.code)}</strong>: el personal puede validarlo manualmente en puerta.</p>
+      </>
+    );
+  }
+  return (
+    <>
+      <h1>{String(row.event)}</h1>
+      <p className="muted">{String(row.zone)} · Titular: <strong>{String(row.holder_name || "")}</strong>{String(row.holder_doc || "") ? ` · ${row.holder_doc}` : ""} · {String(row.status)}</p>
+      <p><strong>{String(row.code)}</strong></p>
+      <div className="qr"><img src={qr} alt="QR entrada" width={220} height={220} /></div>
+      <p className="muted">Muestra este QR en puerta. Contiene firma anti-falsificación.</p>
+    </>
+  );
 }
