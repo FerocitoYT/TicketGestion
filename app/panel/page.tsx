@@ -16,6 +16,7 @@ export default async function Panel() {
         COALESCE((SELECT COUNT(*) FROM scans sc WHERE sc.event_id=e.id AND sc.result='ok'),0) AS checked
       FROM events e WHERE e.org_id=${s.orgId} ORDER BY e.starts_at DESC`;
     const venues = await sql`SELECT * FROM venues WHERE org_id=${s.orgId} ORDER BY name ASC`;
+    const members = await sql`SELECT u.name, u.email, m.role FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.org_id=${s.orgId} ORDER BY m.role, u.name`;
     return (
       <>
         <h1>Panel organizador</h1>
@@ -65,6 +66,33 @@ export default async function Panel() {
             ))}
           </tbody>
         </table>
+        <h2>Personal de acceso</h2>
+        <p className="muted">Solo el personal puede abrir <a href="/validar">/validar</a>: escanea QR con cámara o código, y el sistema muestra el titular para comprobar el DNI.</p>
+        <table>
+          <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th></tr></thead>
+          <tbody>
+            {members.map((m) => (
+              <tr key={String(m.email)}><td>{String(m.name)}</td><td>{String(m.email)}</td><td>{String(m.role)}</td></tr>
+            ))}
+          </tbody>
+        </table>
+        {s.role === "owner" && (
+          <form id="staff-form" className="form" style={{ marginTop: 12 }}>
+            <div className="row">
+              <input name="name" required placeholder="Nombre del empleado" />
+              <input name="email" required type="email" placeholder="Email" />
+            </div>
+            <div className="row">
+              <input name="password" required type="password" minLength={8} placeholder="Contraseña (8+)" />
+              <select name="role" defaultValue="scanner">
+                <option value="scanner">Puerta (escáner)</option>
+                <option value="staff">Equipo general</option>
+              </select>
+            </div>
+            <button type="submit">Crear cuenta de personal</button>
+          </form>
+        )}
+        <script dangerouslySetInnerHTML={{ __html: `document.getElementById('staff-form')?.addEventListener('submit',async(e)=>{e.preventDefault();const f=e.target;const d=Object.fromEntries(new FormData(f));const r=await fetch('/api/panel/members',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(d)});const j=await r.json();alert(r.ok?'Personal creado. Ya puede entrar en /login y abrir /validar.':(j.error||'Error'));if(r.ok)location.reload();});` }} />
       </>
     );
   } catch {
