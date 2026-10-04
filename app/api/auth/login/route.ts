@@ -15,11 +15,11 @@ export async function POST(req: Request) {
   const ok = await bcrypt.compare(password, rows[0].password_hash as string);
   if (!ok) return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
   const token = createSessionToken({
-    userId: rows[0].user_id as string, orgId: rows[0].org_id as string,
+    userId: rows[0].id as string, orgId: rows[0].org_id as string,
     name: rows[0].name as string, email: rows[0].email as string,
     role: rows[0].role as string, sessionVersion: Number(rows[0].session_version),
   });
-  const res = NextResponse.json({ ok: true });
+  const res = NextResponse.json({ ok: true, role: rows[0].role as string });
   res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions);
   return res;
 }
