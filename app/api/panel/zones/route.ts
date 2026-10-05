@@ -10,7 +10,12 @@ export async function POST(req: Request) {
   const ev = await sql`SELECT id FROM events WHERE id=${eventId} AND org_id=${s.orgId} LIMIT 1`;
   if (!ev[0]) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
   const cents = Math.round(Number(form.get("price") || 0) * 100);
-  await sql`INSERT INTO zones (event_id, name, price_cents, capacity)
-    VALUES (${eventId}, ${String(form.get("name") || "").slice(0, 120)}, ${cents}, ${Number(form.get("capacity") || 0)})`;
+  const sessionId = String(form.get("sessionId") || "");
+  const ses = await sql`SELECT id FROM sessions WHERE id=${sessionId} AND event_id=${eventId} LIMIT 1`;
+  if (!ses[0]) return NextResponse.json({ error: "Sesión no válida" }, { status: 400 });
+  const rows = Math.min(40, Math.max(0, Number(form.get("seatRows") || 0)));
+  const cols = Math.min(60, Math.max(0, Number(form.get("seatCols") || 0)));
+  await sql`INSERT INTO zones (event_id, session_id, name, price_cents, capacity, seat_rows, seat_cols)
+    VALUES (${eventId}, ${sessionId}, ${String(form.get("name") || "").slice(0, 120)}, ${cents}, ${Number(form.get("capacity") || 0)}, ${rows}, ${cols})`;
   return NextResponse.redirect(new URL(`/panel/${eventId}`, req.url), 303);
 }

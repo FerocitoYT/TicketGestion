@@ -16,6 +16,9 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
   const zones = await sql`SELECT * FROM zones WHERE event_id=${id} ORDER BY price_cents ASC`;
   const orders = await sql`SELECT * FROM orders WHERE event_id=${id} ORDER BY created_at DESC LIMIT 100`;
   const scans = await sql`SELECT s.*, t.code FROM scans s JOIN tickets t ON t.id=s.ticket_id WHERE s.event_id=${id} ORDER BY s.created_at DESC LIMIT 100`;
+  const sessions = await sql`SELECT s.*, (SELECT COUNT(*) FROM zones z WHERE z.session_id=s.id) AS zones_n,
+    (SELECT COALESCE(SUM(sold),0) FROM zones z WHERE z.session_id=s.id) AS sold
+    FROM sessions s WHERE s.event_id=${id} ORDER BY s.starts_at ASC`;
   const attached = await sql`SELECT a.id, a.name, a.photo_url AS photo FROM event_artists ea JOIN artists a ON a.id=ea.artist_id WHERE ea.event_id=${id} ORDER BY a.name`;
   const staff = await sql`SELECT u.id, u.name, u.email, m.role, (es.user_id IS NOT NULL) AS assigned
     FROM memberships m JOIN users u ON u.id=m.user_id LEFT JOIN event_staff es ON es.user_id=u.id AND es.event_id=${id}
@@ -35,6 +38,27 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
         <form action="/api/panel/events/publish" method="post"><input type="hidden" name="id" value={id} /><button>Publicar</button></form>
         <form action="/api/panel/events/cancel" method="post"><input type="hidden" name="id" value={id} /><button className="btn-ghost">Cancelar evento</button></form>
       </div>
+      <h2>Sesiones (fechas)</h2>
+      <table><thead><tr><th>Fecha</th><th>Zonas</th><th>Vendidas</th><th></th></tr></thead>
+        <tbody>{sessions.map((x) => (
+          <tr key={String(x.id)}>
+            <td>{new Date(String(x.starts_at)).toLocaleString("es-ES")}{x.ends_at ? ` → ${new Date(String(x.ends_at)).toLocaleString("es-ES")}` : ""}</td>
+            <td>{String(x.zones_n)}</td><td>{String(x.sold)}</td>
+            <td><form action="/api/panel/sessions/delete" method="post" style={{ display: "inline" }}>
+              <input type="hidden" name="id" value={String(x.id)} /><input type="hidden" name="eventId" value={id} />
+              <button>Borrar</button>
+            </form></td>
+          </tr>
+        ))}</tbody>
+      </table>
+      <form action="/api/panel/sessions" method="post" className="form" style={{ marginTop: 10 }}>
+        <input type="hidden" name="eventId" value={id} />
+        <div className="row">
+          <label>Inicio<input name="startsAt" type="datetime-local" required /></label>
+          <label>Fin (opcional)<input name="endsAt" type="datetime-local" /></label>
+        </div>
+        <button formAction="/api/panel/sessions">Añadir fecha (hereda zonas)</button>
+      </form>
       <h2>Zonas y precios</h2>
       <form action="/api/panel/zones" method="post" className="form">
         <input type="hidden" name="eventId" value={id} />
@@ -42,6 +66,13 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
           <input name="name" required placeholder="Pista / Grada…" />
           <input name="price" required type="number" step="0.01" placeholder="Precio €" />
           <input name="capacity" required type="number" placeholder="Cupo" />
+        </div>
+        <div className="row">
+          <select name="sessionId" required>
+            {sessions.map((x) => <option key={String(x.id)} value={String(x.id)}>{new Date(String(x.starts_at)).toLocaleString("es-ES")}</option>)}
+          </select>
+          <input name="seatRows" type="number" min={0} max={40} placeholder="Filas (0 = sin numerar)" />
+          <input name="seatCols" type="number" min={0} max={60} placeholder="Asientos por fila" />
         </div>
         <button formAction="/api/panel/zones">Añadir zona</button>
       </form>

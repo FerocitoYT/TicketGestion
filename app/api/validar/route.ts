@@ -24,8 +24,9 @@ export async function POST(req: Request) {
   const sql = getDb();
   const rows = await sql`
     SELECT t.*, e.title AS event, z.name AS zone, e.org_id, o.buyer_name, o.buyer_email,
-           e.status AS estate, e.ends_at AS eends, e.access_grace_minutes AS egrace, e.access_closed AS eclosed
+           e.status AS estate, COALESCE(s.ends_at, e.ends_at) AS eends, e.access_grace_minutes AS egrace, e.access_closed AS eclosed
     FROM tickets t JOIN events e ON e.id=t.event_id JOIN zones z ON z.id=t.zone_id
+    LEFT JOIN sessions s ON s.id=z.session_id
     JOIN orders o ON o.id=t.order_id
     WHERE t.code=${code} LIMIT 1`;
   const t = rows[0] as Record<string, unknown> | undefined;
