@@ -60,6 +60,9 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
         <button formAction="/api/panel/sessions">Añadir fecha (hereda zonas)</button>
       </form>
       <h2>Zonas y precios</h2>
+      {sessions.length === 0 && (
+        <p className="alert err">Este evento aún no tiene fechas: crea primero una en “Sesiones” para poder añadir zonas.</p>
+      )}
       <form action="/api/panel/zones" method="post" className="form">
         <input type="hidden" name="eventId" value={id} />
         <div className="row">
