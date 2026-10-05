@@ -12,11 +12,11 @@ const CATS: [string, string][] = [
 
 export default async function Eventos({ searchParams }: { searchParams: Promise<{ q?: string; cat?: string }> }) {
   const sp = await searchParams;
-  let events: { title: string; slug: string; description: string; category: string; starts_at: string; city: string; venue: string; min_price: number | null }[] = [];
+  let events: { title: string; slug: string; description: string; category: string; starts_at: string; city: string; venue: string; min_price: number | null; poster: string }[] = [];
   try {
     const sql = getDb();
     const rows = await sql`
-      SELECT e.title, e.slug, e.description, e.category, e.starts_at,
+      SELECT e.title, e.slug, e.description, e.category, e.starts_at, e.image_url AS poster,
              COALESCE(v.city,'') AS city, COALESCE(v.name,'') AS venue,
              (SELECT MIN(price_cents) FROM zones z WHERE z.event_id = e.id) AS min_price
       FROM events e LEFT JOIN venues v ON v.id = e.venue_id
@@ -48,7 +48,9 @@ export default async function Eventos({ searchParams }: { searchParams: Promise<
           const dt = new Date(e.starts_at);
           return (
             <a key={e.slug} className="card" href={`/eventos/${e.slug}`}>
-              <div className={`card-art art-${e.category}`}>{e.category} · {e.city || "Gira"}</div>
+              <div className={`card-art art-${e.category}`} style={e.poster ? { backgroundImage: `url(${e.poster})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
+                {!e.poster && <>{e.category} · {e.city || "Gira"}</>}
+              </div>
               <div className="card-body">
                 <div className="datebox">
                   <b>{dt.getDate().toString().padStart(2, "0")}</b>

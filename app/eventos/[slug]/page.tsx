@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { getDb } from "@/lib/db";
-import BuyBox from "@/components/buy-box";
 
 export const dynamic = "force-dynamic";
 
@@ -32,14 +31,12 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   if (!data) notFound();
   const { event, sessions, zones, artists } = data;
   const totalLeft = zones.reduce((a, z) => a + Math.max(0, Number(z.capacity) - Number(z.sold)), 0);
-  const k = process.env.STRIPE_SECRET_KEY || "";
-  const simulated = !(k.startsWith("sk_") && !k.includes("replace_me"));
   const dt = new Date(String(event.starts_at));
   return (
     <>
       <p className="crumbs"><a href="/">Inicio</a> / <a href="/eventos">Agenda</a> / {String(event.title)}</p>
       <section className="event-hero">
-        <div className={`banner art-${String(event.category)}`}>
+        <div className={`banner art-${String(event.category)}`} style={event.image_url ? { backgroundImage: `linear-gradient(rgba(4,20,50,.45),rgba(4,20,50,.45)),url(${String(event.image_url)})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
           <span className="badge" style={{ background: "rgba(255,255,255,.25)", color: "#fff" }}>
             {String(event.category)} · {sessions.length > 1 ? `${sessions.length} fechas` : dt.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}
           </span>
@@ -81,13 +78,21 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             {zones.length === 0 || sessions.length === 0 ? (
               <p className="muted">Entradas a la venta próximamente.</p>
             ) : (
-              <BuyBox
-                eventId={String(event.id)}
-                sessions={sessions.map((s) => ({ id: String(s.id), starts_at: String(s.starts_at), ends_at: s.ends_at ? String(s.ends_at) : null }))}
-                zones={zones.map((z) => ({ id: String(z.id), name: String(z.name), price_cents: Number(z.price_cents), capacity: Number(z.capacity), sold: Number(z.sold), session_id: String(z.session_id), seat_rows: Number(z.seat_rows), seat_cols: Number(z.seat_cols) }))}
-                maxOrder={Number(event.max_per_order ?? 10)}
-                simulated={simulated}
-              />
+              zones.filter((z) => Number(z.capacity) - Number(z.sold) > 0).map((z) => (
+                <div key={String(z.id)} className="zone" style={{ marginBottom: 10 }}>
+                  <div>
+                    <strong>{String(z.name)}</strong><br />
+                    <span className="muted">{Number(z.capacity) - Number(z.sold)} disponibles{Number(z.seat_rows) > 0 ? " · elige asiento" : ""}</span>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 20, fontWeight: 800 }}>{(Number(z.price_cents) / 100).toFixed(2)} €</div>
+                    <a className="btn btn-blue" style={{ marginTop: 6 }} href={`/comprar?zone=${String(z.id)}`}>Elegir</a>
+                  </div>
+                </div>
+              ))
+            )}
+            {zones.length > 0 && zones.every((z) => Number(z.capacity) - Number(z.sold) <= 0) && (
+              <p className="alert err">Entradas agotadas.</p>
             )}
           </aside>
         </div>

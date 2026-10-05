@@ -14,22 +14,24 @@ export type AccessEvent = {
   session_starts_at?: string | null;
 };
 
-function fmtStart(d: string): string {
-  return new Date(d).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+function fmtDay(d: string): string {
+  return new Date(d).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
 }
 
+// Regla de puerta: abre a las 00:00 del día del evento (o de la sesión) y
+// cierra 1 h después del inicio. El cierre manual y el estado mandan siempre.
 export function accessState(e: AccessEvent, now: number = Date.now()): { open: boolean; reason: string } {
   if (e.status === "cancelled") return { open: false, reason: "Evento cancelado" };
   if (e.status !== "published") return { open: false, reason: "Evento no publicado" };
   if (e.access_closed) return { open: false, reason: "Control de acceso finalizado por la organización" };
   const start = new Date(e.session_starts_at || e.starts_at).getTime();
-  const opens = Number(e.access_opens_minutes ?? 120);
-  if (now < start - opens * 60000) {
-    return { open: false, reason: `El control abre el ${fmtStart(new Date(start - opens * 60000).toISOString())}` };
+  const dayStart = new Date(start);
+  dayStart.setHours(0, 0, 0, 0);
+  if (now < dayStart.getTime()) {
+    return { open: false, reason: `El control abre el ${fmtDay(new Date(dayStart).toISOString())}` };
   }
-  if (e.ends_at) {
-    const limit = new Date(e.ends_at).getTime() + Number(e.access_grace_minutes || 0) * 60000;
-    if (now > limit) return { open: false, reason: "Control finalizado (hora de fin superada)" };
+  if (now > start + 3600e3) {
+    return { open: false, reason: "Control finalizado (1 h después del inicio)" };
   }
   return { open: true, reason: "" };
 }

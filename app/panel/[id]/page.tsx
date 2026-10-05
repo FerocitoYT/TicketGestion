@@ -34,6 +34,18 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
       <a href="/panel">← Volver</a>
       <h1>{String(ev[0].title)}</h1>
       <p className="muted">slug: {String(ev[0].slug)} · estado: {String(ev[0].status)}</p>
+      <h2>Cartel del concierto</h2>
+      {ev[0].image_url ? (
+        <img src={String(ev[0].image_url)} alt="Cartel" style={{ maxWidth: 320, borderRadius: 12 }} />
+      ) : (
+        <p className="muted">Sin cartel: se muestra un fondo por categoría.</p>
+      )}
+      <form action="/api/panel/events/poster" method="post" encType="multipart/form-data" className="form" style={{ marginTop: 10 }}>
+        <input type="hidden" name="id" value={id} />
+        <label>Archivo (JPG/PNG/WebP, máx 1,5 MB)<input name="file" type="file" accept="image/jpeg,image/png,image/webp" /></label>
+        <label>O URL de imagen<input name="imageUrl" placeholder="https://…" /></label>
+        <button formAction="/api/panel/events/poster">Guardar cartel</button>
+      </form>
       <div className="row">
         <form action="/api/panel/events/publish" method="post"><input type="hidden" name="id" value={id} /><button>Publicar</button></form>
         <form action="/api/panel/events/cancel" method="post"><input type="hidden" name="id" value={id} /><button className="btn-ghost">Cancelar evento</button></form>
@@ -96,16 +108,14 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
       <p className="muted">
         Control operativo: {String(ev[0].status) === "published" && !ev[0].access_closed ? "SÍ" : "NO"}
         {ev[0].access_closed ? " (cerrado a mano)" : ""}
-        {ev[0].ends_at ? ` · cierra ${new Date(String(ev[0].ends_at)).toLocaleString("es-ES")} + ${String(ev[0].access_grace_minutes ?? 120)} min de margen` : " · sin hora de fin (solo cierre manual)"}
       </p>
+      <p className="muted">La puerta abre a las 00:00 del día del evento y cierra 1 h después del inicio.</p>
       <form action="/api/panel/events/schedule" method="post" className="form">
         <input type="hidden" name="id" value={id} />
         <div className="row">
-          <label>Hora de fin<input name="endsAt" type="datetime-local" defaultValue={toLocal(ev[0].ends_at)} /></label>
-          <label>Margen tras fin (min)<input name="grace" type="number" min={0} max={1440} defaultValue={String(ev[0].access_grace_minutes ?? 120)} /></label>
-          <label>Puerta abre (min antes)<input name="opens" type="number" min={0} max={10080} defaultValue={String(ev[0].access_opens_minutes ?? 120)} /></label>
+          <label>Hora de fin (informativa)<input name="endsAt" type="datetime-local" defaultValue={toLocal(ev[0].ends_at)} /></label>
         </div>
-        <button formAction="/api/panel/events/schedule">Guardar horario de control</button>
+        <button formAction="/api/panel/events/schedule">Guardar hora de fin</button>
       </form>
       <div className="row" style={{ marginTop: 10 }}>
         {!ev[0].access_closed

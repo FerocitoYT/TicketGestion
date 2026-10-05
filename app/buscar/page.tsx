@@ -10,13 +10,13 @@ export default async function Buscar({ searchParams }: { searchParams: Promise<{
   }
   const like = `%${q.toLowerCase()}%`;
   let artists: { name: string; slug: string; photo_url: string; genre: string }[] = [];
-  let events: { title: string; slug: string; category: string; starts_at: string; city: string; venue: string }[] = [];
+  let events: { title: string; slug: string; category: string; starts_at: string; city: string; venue: string; poster: string }[] = [];
   try {
     const sql = getDb();
     const a = await sql`SELECT name, slug, photo_url, genre FROM artists WHERE LOWER(name) LIKE ${like} ORDER BY name ASC LIMIT 8`;
     artists = a as unknown as typeof artists;
     const e = await sql`
-      SELECT e.title, e.slug, e.category, e.starts_at, COALESCE(v.city,'') AS city, COALESCE(v.name,'') AS venue
+      SELECT e.title, e.slug, e.category, e.starts_at, e.image_url AS poster, COALESCE(v.city,'') AS city, COALESCE(v.name,'') AS venue
       FROM events e LEFT JOIN venues v ON v.id=e.venue_id
       WHERE e.status='published' AND (LOWER(e.title) LIKE ${like} OR LOWER(COALESCE(v.name,'')) LIKE ${like} OR LOWER(COALESCE(v.city,'')) LIKE ${like} OR LOWER(e.description) LIKE ${like})
       ORDER BY e.starts_at ASC LIMIT 12`;
@@ -55,7 +55,7 @@ export default async function Buscar({ searchParams }: { searchParams: Promise<{
               const dt = new Date(e.starts_at);
               return (
                 <a key={e.slug} className="card" href={`/eventos/${e.slug}`}>
-                  <div className={`card-art art-${e.category}`}>{e.category} · {e.city || "Gira"}</div>
+                  <div className={`card-art art-${e.category}`} style={e.poster ? { backgroundImage: `url(${e.poster})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>{!e.poster && <>{e.category} · {e.city || "Gira"}</>}</div>
                   <div className="card-body">
                     <div className="datebox">
                       <b>{dt.getDate().toString().padStart(2, "0")}</b>

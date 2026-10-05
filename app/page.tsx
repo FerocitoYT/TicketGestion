@@ -13,7 +13,7 @@ const CAT_LABEL = Object.fromEntries(CATS);
 
 type EventRow = {
   title: string; slug: string; description: string; category: string;
-  starts_at: string; city: string; venue: string; min_price: number | null;
+  starts_at: string; city: string; venue: string; min_price: number | null; poster: string;
   artists: string;
   artist_slugs: string;
 };
@@ -25,7 +25,7 @@ async function loadEvents(): Promise<EventRow[]> {
   try {
     const sql = getDb();
     const rows = await sql`
-      SELECT e.title, e.slug, e.description, e.category, e.starts_at,
+      SELECT e.title, e.slug, e.description, e.category, e.starts_at, e.image_url AS poster,
              COALESCE(v.city,'') AS city, COALESCE(v.name,'') AS venue,
              (SELECT MIN(price_cents) FROM zones z WHERE z.event_id = e.id) AS min_price,
              COALESCE((SELECT string_agg(a.name, '|') FROM event_artists ea JOIN artists a ON a.id=ea.artist_id WHERE ea.event_id=e.id), '') AS artists,
@@ -77,8 +77,8 @@ function Card({ e }: { e: EventRow }) {
   const artists = e.artists ? e.artists.split("|") : [];
   return (
     <a className="card" href={`/eventos/${e.slug}`}>
-      <div className={`card-art art-${e.category}`}>
-        {CAT_LABEL[e.category] || e.category} · {e.city || "Gira nacional"}
+      <div className={`card-art art-${e.category}`} style={e.poster ? { backgroundImage: `url(${e.poster})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
+        {!e.poster && <>{CAT_LABEL[e.category] || e.category} · {e.city || "Gira nacional"}</>}
       </div>
       <div className="card-body">
         <div className="datebox"><b>{f.day}</b><span>{f.mon}</span></div>

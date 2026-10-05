@@ -6,29 +6,29 @@ import ValidarClient from "@/components/validar-client";
 
 export const dynamic = "force-dynamic";
 
-// Un evento lista como operativo si su propio control abre o si alguna sesión está en ventana.
-// Si todo es futuro, indica cuándo abre; si todo pasó, el motivo de cierre.
+// Un evento lista como operativo si su propio control abre o si alguna sesión está en ventana
+// (día de la sesión desde las 00:00 hasta 1 h después del inicio).
 function effectiveReason(
   e: AccessEvent, sessions: { starts_at: string; ends_at: string | null }[]
 ): string {
   if (e.status !== "published") return accessState(e).reason;
   if (e.access_closed) return accessState(e).reason;
-  const grace = Number(e.access_grace_minutes || 0);
-  const opens = Number(e.access_opens_minutes ?? 120);
+  const inWindow = (startIso: string): boolean => {
+    const start = new Date(startIso).getTime();
+    const day = new Date(start);
+    day.setHours(0, 0, 0, 0);
+    return Date.now() >= day.getTime() && Date.now() <= start + 3600e3;
+  };
   if (sessions.length === 0) return accessState(e).reason;
-  let earliestUpcoming: number | null = null;
-  for (const sess of sessions) {
-    const start = new Date(sess.starts_at).getTime();
-    const limit = sess.ends_at ? new Date(sess.ends_at).getTime() + grace * 60000 : Infinity;
-    if (Date.now() >= start - opens * 60000 && Date.now() <= limit) return "";
-    if (Date.now() < start - opens * 60000 && (earliestUpcoming === null || start - opens * 60000 < earliestUpcoming)) {
-      earliestUpcoming = start - opens * 60000;
-    }
+  if (sessions.some((s) => inWindow(s.starts_at))) return "";
+  const upcoming = sessions
+    .map((s) => new Date(s.starts_at).getTime())
+    .filter((t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return Date.now() < d.getTime(); })
+    .sort((a, b) => a - b)[0];
+  if (upcoming !== undefined) {
+    return `El control abre el ${new Date(upcoming).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}`;
   }
-  if (earliestUpcoming !== null) {
-    return `El control abre el ${new Date(earliestUpcoming).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
-  }
-  return "Control finalizado (hora de fin superada)";
+  return "Control finalizado (1 h después del inicio)";
 }
 
 export default async function ValidarPage() {

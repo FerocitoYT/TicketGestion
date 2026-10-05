@@ -19,3 +19,19 @@ export function validSeat(seat: string, rows: number, cols: number): boolean {
   const c = Number(m[2]) - 1;
   return r >= 0 && r < rows && c >= 0 && c < cols;
 }
+// Busca N asientos juntos en la misma fila (delante primero, centrados).
+export function findTogether(taken: string[], held: string[], rows: number, cols: number, n: number): string[] {
+  const blocked = new Set([...taken, ...held]);
+  const center = (cols - 1) / 2;
+  let best: string[] | null = null;
+  let bestScore = Infinity;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c + n <= cols; c++) {
+      const block = Array.from({ length: n }, (_, i) => seatName(r, c + i));
+      if (block.some((s) => blocked.has(s))) continue;
+      const score = r * cols + Math.abs(c + (n - 1) / 2 - center);
+      if (score < bestScore) { bestScore = score; best = block; }
+    }
+  }
+  return best || [];
+}
