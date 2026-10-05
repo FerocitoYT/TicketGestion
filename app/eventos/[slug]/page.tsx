@@ -60,14 +60,23 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
               <span className="badge">Anti-reventa en puerta</span>
             </div>
             <h3>Zonas y precios</h3>
-            <div className="zones">
-              {zones.map((z) => (
-                <div key={String(z.id)} className="zone">
-                  <div><strong>{String(z.name)}</strong><br /><span className="muted">{Number(z.capacity) - Number(z.sold)} disponibles{Number(z.seat_rows) > 0 ? " · asientos numerados" : ""}</span></div>
-                  <div style={{ fontSize: 20, fontWeight: 800 }}>{(Number(z.price_cents) / 100).toFixed(2)} €</div>
+            {sessions.map((ses) => {
+              const sz = zones.filter((z) => String(z.session_id) === String(ses.id));
+              if (sz.length === 0) return null;
+              return (
+                <div key={String(ses.id)}>
+                  <p><span className="badge">{new Date(String(ses.starts_at)).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</span></p>
+                  <div className="zones">
+                    {sz.map((z) => (
+                      <div key={String(z.id)} className="zone">
+                        <div><strong>{String(z.name)}</strong><br /><span className="muted">{Number(z.capacity) - Number(z.sold)} disponibles{Number(z.seat_rows) > 0 ? " · asientos numerados" : ""}</span></div>
+                        <div style={{ fontSize: 20, fontWeight: 800 }}>{(Number(z.price_cents) / 100).toFixed(2)} €</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
             <h3>Preguntas frecuentes</h3>
             <p className="muted"><strong>¿La entrada lleva mi nombre?</strong> Sí: cada QR es nominativo y en puerta se comprueba el DNI.</p>
             <p className="muted"><strong>¿Puedo revenderla?</strong> No: el primer escaneo quema la entrada y las copias dejan de funcionar.</p>
@@ -78,18 +87,27 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             {zones.length === 0 || sessions.length === 0 ? (
               <p className="muted">Entradas a la venta próximamente.</p>
             ) : (
-              zones.filter((z) => Number(z.capacity) - Number(z.sold) > 0).map((z) => (
-                <div key={String(z.id)} className="zone" style={{ marginBottom: 10 }}>
-                  <div>
-                    <strong>{String(z.name)}</strong><br />
-                    <span className="muted">{Number(z.capacity) - Number(z.sold)} disponibles{Number(z.seat_rows) > 0 ? " · elige asiento" : ""}</span>
+              sessions.map((ses) => {
+                const sz = zones.filter((z) => String(z.session_id) === String(ses.id) && Number(z.capacity) - Number(z.sold) > 0);
+                if (sz.length === 0) return null;
+                return (
+                  <div key={String(ses.id)} style={{ marginBottom: 12 }}>
+                    <p className="muted" style={{ margin: "8px 0" }}><strong>{new Date(String(ses.starts_at)).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</strong></p>
+                    {sz.map((z) => (
+                      <div key={String(z.id)} className="zone" style={{ marginBottom: 10 }}>
+                        <div>
+                          <strong>{String(z.name)}</strong><br />
+                          <span className="muted">{Number(z.capacity) - Number(z.sold)} disponibles{Number(z.seat_rows) > 0 ? " · elige asiento" : ""}</span>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontSize: 20, fontWeight: 800 }}>{(Number(z.price_cents) / 100).toFixed(2)} €</div>
+                          <a className="btn btn-blue" style={{ marginTop: 6 }} href={`/comprar?zone=${String(z.id)}`}>Elegir</a>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 20, fontWeight: 800 }}>{(Number(z.price_cents) / 100).toFixed(2)} €</div>
-                    <a className="btn btn-blue" style={{ marginTop: 6 }} href={`/comprar?zone=${String(z.id)}`}>Elegir</a>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
             {zones.length > 0 && zones.every((z) => Number(z.capacity) - Number(z.sold) <= 0) && (
               <p className="alert err">Entradas agotadas.</p>
