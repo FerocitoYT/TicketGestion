@@ -25,6 +25,7 @@ export default function MisEntradas() {
         <div key={t.code} className="card" style={{ marginTop: 10 }}>
           <strong>{t.code}</strong> · {t.event} · {t.zone} · {t.status}{t.holder ? ` · ${t.holder}` : ""}
           <br /><a href={`/t/${encodeURIComponent(t.code)}`}>Ver QR</a>
+          {t.status === "valid" && <> · <a href={`/transferir?code=${encodeURIComponent(t.code)}`}>Transferir</a></>}
         </div>
       ))}
     </>

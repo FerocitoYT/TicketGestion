@@ -4,8 +4,9 @@ import { fetchTopSongs } from "@/lib/itunes";
 
 export const dynamic = "force-dynamic";
 
-export default async function ArtistaPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ArtistaPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ alerta?: string }> }) {
   const { slug } = await params;
+  const sp = await searchParams;
   try {
     const sql = getDb();
     const rows = await sql`SELECT * FROM artists WHERE slug=${slug} LIMIT 1`;
@@ -22,6 +23,8 @@ export default async function ArtistaPage({ params }: { params: Promise<{ slug: 
     return (
       <>
         <p className="crumbs"><a href="/">Inicio</a> / <a href="/artistas">Artistas</a> / {String(a.name)}</p>
+        {sp.alerta === "ok" && <p className="alert ok">Suscrito: te avisaremos de sus nuevas fechas.</p>}
+        {sp.alerta === "off" && <p className="alert ok">Suscripción cancelada.</p>}
         <section className="event-hero">
           <div className="banner art-concierto" style={a.photo_url ? { backgroundImage: `linear-gradient(rgba(4,20,50,.55),rgba(4,20,50,.55)),url(${String(a.photo_url)})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
             <span className="badge" style={{ background: "rgba(255,255,255,.25)", color: "#fff" }}>{String(a.genre || "Artista")}</span>
@@ -32,6 +35,11 @@ export default async function ArtistaPage({ params }: { params: Promise<{ slug: 
               {a.photo_url && <img src={String(a.photo_url)} alt={String(a.name)} width={220} style={{ borderRadius: 12, float: "right", margin: "0 0 12px 16px" }} />}
               <h2>Sobre el artista</h2>
               <p>{String(a.bio || "Próximamente más información.")}</p>
+              <form action="/api/alertas" method="post" className="row" style={{ marginTop: 12 }}>
+                <input type="hidden" name="artistId" value={String(a.id)} />
+                <input name="email" type="email" required placeholder="tu@email.com para avisos de nuevas fechas" style={{ maxWidth: 300 }} />
+                <button className="btn btn-blue">Avísame de sus eventos</button>
+              </form>
             </div>
           </div>
         </section>
