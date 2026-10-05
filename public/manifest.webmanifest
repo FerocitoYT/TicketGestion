@@ -1,0 +1,12 @@
+{
+  "name": "TicketGestion Puerta",
+  "short_name": "Puerta",
+  "description": "Control de acceso a eventos, con modo sin internet",
+  "start_url": "/validar",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#026cdf",
+  "theme_color": "#026cdf",
+  "icons": [{ "src": "/icon.png", "sizes": "512x512", "type": "image/png" }]
+}

@@ -100,6 +100,7 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
         <div className="row">
           <label>Hora de fin<input name="endsAt" type="datetime-local" defaultValue={toLocal(ev[0].ends_at)} /></label>
           <label>Margen tras fin (min)<input name="grace" type="number" min={0} max={1440} defaultValue={String(ev[0].access_grace_minutes ?? 120)} /></label>
+          <label>Puerta abre (min antes)<input name="opens" type="number" min={0} max={10080} defaultValue={String(ev[0].access_opens_minutes ?? 120)} /></label>
         </div>
         <button formAction="/api/panel/events/schedule">Guardar horario de control</button>
       </form>

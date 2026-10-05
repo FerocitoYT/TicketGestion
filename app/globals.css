@@ -183,6 +183,11 @@ td, th { border-bottom: 1px solid var(--tm-line); padding: 10px 10px; text-align
 }
 .drawer a:not(.brand):hover { background: #eef4ff; }
 
+@media print {
+  .topbar, .foot, .no-print, .drawer, .scrim { display: none !important; }
+  body { background: #fff; color: #000; }
+  .wrap { padding: 0; }
+}
 @media (max-width: 900px) {
   .topbar nav.desk { display: none; }
   .burger { display: block; flex-shrink: 0; }

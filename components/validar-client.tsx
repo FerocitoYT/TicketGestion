@@ -6,8 +6,13 @@ type Scan = { result: string; gate: string; created_at: string };
 type Result = {
   ok?: boolean; error?: string; code?: string; event?: string; zone?: string;
   holder?: string; doc?: string; seat?: string; buyer?: string; email?: string; scans?: Scan[];
+  offline?: boolean;
 };
 type Evt = { id: string; title: string };
+type OffTicket = {
+  code: string; holder: string; doc: string; seat: string; status: string;
+  zone: string; event: string; event_id: string;
+};
 
 // Pitido de confirmación (Web Audio, sin archivos): doble tono agudo = OK, grave = denegado.
 function beep(ok: boolean) {
@@ -51,9 +56,106 @@ export default function ValidarClient({ openEvents, closedEvents, isOwner }: {
   const busyRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [left, setLeft] = useState(0);
+  const [offCount, setOffCount] = useState(0);
+  const [offAt, setOffAt] = useState("");
+  const [queue, setQueue] = useState(0);
+  const [syncMsg, setSyncMsg] = useState("");
   const lastRef = useRef<{ code: string; at: number }>({ code: "", at: 0 });
 
   useEffect(() => () => { stopCam(); if (timerRef.current) clearInterval(timerRef.current); }, []);
+  useEffect(() => {
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+    try {
+      const l = JSON.parse(localStorage.getItem("tg-offline-list") || "null");
+      if (l) { setOffCount(l.tickets.length); setOffAt(l.at); }
+      setQueue(JSON.parse(localStorage.getItem("tg-offline-queue") || "[]").length);
+    } catch { /* noop */ }
+  }, []);
+
+  function readList(): { at: string; tickets: OffTicket[] } | null {
+    try {
+      return JSON.parse(localStorage.getItem("tg-offline-list") || "null");
+    } catch {
+      return null;
+    }
+  }
+  function readQueue(): { payload: string; at: string }[] {
+    try {
+      return JSON.parse(localStorage.getItem("tg-offline-queue") || "[]");
+    } catch {
+      return [];
+    }
+  }
+
+  async function downloadList() {
+    setSyncMsg("Descargando…");
+    try {
+      const r = await fetch("/api/puerta/lista");
+      const j = await r.json();
+      if (!r.ok) { setSyncMsg(j.error || "Error"); return; }
+      localStorage.setItem("tg-offline-list", JSON.stringify({ at: j.at, tickets: j.tickets }));
+      setOffCount(j.tickets.length);
+      setOffAt(j.at);
+      setSyncMsg(`Lista guardada: ${j.tickets.length} entradas (${new Date(j.at).toLocaleString("es-ES")}). Ya puedes validar sin internet.`);
+    } catch {
+      setSyncMsg("Sin conexión: no se pudo descargar.");
+    }
+  }
+
+  function offlineValidate(raw: string) {
+    const code = raw.trim().split(".")[0].toUpperCase();
+    const list = readList();
+    if (!list) {
+      setRes({ error: "Sin conexión y sin lista descargada. Descarga la lista con internet antes de puerta." });
+      setCount((c) => ({ ...c, no: c.no + 1 }));
+      beep(false);
+      return;
+    }
+    const t = list.tickets.find((x) => x.code === code);
+    if (!t) {
+      setRes({ error: "Sin conexión: código no aparece como válido en la lista. Denegar y revisar al sincronizar." });
+      setCount((c) => ({ ...c, no: c.no + 1 }));
+      beep(false);
+      return;
+    }
+    if (t.status !== "valid") {
+      setRes({ error: `Sin conexión: ${t.code} ya figura como usada. Denegar acceso.`, code: t.code, event: t.event, zone: t.zone, holder: t.holder, doc: t.doc, seat: t.seat, offline: true });
+      setCount((c) => ({ ...c, no: c.no + 1 }));
+      beep(false);
+      return;
+    }
+    t.status = "used";
+    localStorage.setItem("tg-offline-list", JSON.stringify(list));
+    const q = readQueue();
+    q.push({ payload: raw.trim(), at: new Date().toISOString() });
+    localStorage.setItem("tg-offline-queue", JSON.stringify(q));
+    setQueue(q.length);
+    const j: Result = { ok: true, code: t.code, event: t.event, zone: t.zone, holder: t.holder, doc: t.doc, seat: t.seat, offline: true };
+    setRes(j);
+    setCount((c) => ({ ok: c.ok + 1, no: c.no }));
+    beep(true);
+    setTimeout(() => setRes((cur) => (cur === j ? null : cur)), t.seat ? 15000 : 2600);
+  }
+
+  async function syncQueue() {
+    const q = readQueue();
+    if (q.length === 0) { setSyncMsg("Nada pendiente de sincronizar."); return; }
+    setSyncMsg(`Sincronizando ${q.length}…`);
+    try {
+      const r = await fetch("/api/puerta/sync", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ items: q }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setSyncMsg(j.error || "Error"); return; }
+      localStorage.setItem("tg-offline-queue", "[]");
+      setQueue(0);
+      await downloadList();
+      setSyncMsg(`Sincronizado: ${j.confirmed}/${j.synced} confirmados en servidor. Revisa los no confirmados.`);
+    } catch {
+      setSyncMsg("Sin conexión todavía.");
+    }
+  }
 
   async function validate(code: string) {
     if (busyRef.current || !code.trim()) return;
@@ -65,8 +167,7 @@ export default function ValidarClient({ openEvents, closedEvents, isOwner }: {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ payload: code.trim() }),
       });
-      const j = (await r.json()) as Result;
-      setRes(j);
+      const j = (await r.json()) as Result;      setRes(j);
       setCount((c) => ({ ok: c.ok + (j.ok ? 1 : 0), no: c.no + (j.ok ? 0 : 1) }));
       beep(!!j.ok);
       if (j.ok) {
@@ -88,6 +189,9 @@ export default function ValidarClient({ openEvents, closedEvents, isOwner }: {
           setRes((cur) => (cur === j ? null : cur));
         }, hold);
       }
+    } catch {
+      // Sin red: valida contra la lista descargada y encola para sincronizar.
+      offlineValidate(code);
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -178,6 +282,20 @@ export default function ValidarClient({ openEvents, closedEvents, isOwner }: {
           <button disabled={busy}>{busy ? "Validando…" : "Validar código"}</button>
         </form>
       </details>
+      <details style={{ marginTop: 12, maxWidth: 480 }}>
+        <summary className="muted" style={{ cursor: "pointer", fontWeight: 700 }}>Modo sin internet</summary>
+        <div style={{ marginTop: 10 }} className="form">
+          <p className="muted">
+            {offCount > 0 ? `Lista del ${new Date(offAt).toLocaleString("es-ES")}: ${offCount} entradas.` : "Sin lista descargada."}
+            {queue > 0 && <> Pendientes de sincronizar: <strong>{queue}</strong>.</>}
+          </p>
+          <div className="row">
+            <button type="button" onClick={downloadList}>Descargar lista (con internet)</button>
+            <button type="button" onClick={syncQueue} disabled={queue === 0}>Sincronizar ({queue})</button>
+          </div>
+          {syncMsg && <p className="muted">{syncMsg}</p>}
+        </div>
+      </details>
       {res && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center",
@@ -186,6 +304,7 @@ export default function ValidarClient({ openEvents, closedEvents, isOwner }: {
           <div style={{ maxWidth: 560 }}>
             <div style={{ fontSize: 64 }}>{res.ok ? "✓" : "✕"}</div>
             <h2 style={{ fontSize: 40, margin: "6px 0" }}>{res.ok ? "VALIDACIÓN CORRECTA" : "ACCESO DENEGADO"}</h2>
+            {res.offline && <p><span className="badge" style={{ background: "rgba(255,255,255,.25)", color: "#fff" }}>Sin conexión · pendiente de sincronizar</span></p>}
             {res.error && !res.ok && <p style={{ fontSize: 18 }}><strong>{res.error}</strong></p>}
             {res.code && (
               <div style={{ fontSize: 19, lineHeight: 1.7, marginTop: 8 }}>

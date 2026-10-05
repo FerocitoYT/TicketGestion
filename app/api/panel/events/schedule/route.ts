@@ -12,7 +12,8 @@ export async function POST(req: Request) {
   if (!ev[0]) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
   const raw = String(form.get("endsAt") || "");
   const grace = Math.min(1440, Math.max(0, Number(form.get("grace") || 120)));
-  await sql`UPDATE events SET ends_at=${raw ? new Date(raw).toISOString() : null}, access_grace_minutes=${grace} WHERE id=${id}`;
-  await sql`INSERT INTO audit_events (org_id, actor_id, action, meta) VALUES (${s.orgId}, ${s.userId}, 'event.schedule', ${JSON.stringify({ id, raw, grace })})`;
+  const opens = Math.min(10080, Math.max(0, Number(form.get("opens") || 120)));
+  await sql`UPDATE events SET ends_at=${raw ? new Date(raw).toISOString() : null}, access_grace_minutes=${grace}, access_opens_minutes=${opens} WHERE id=${id}`;
+  await sql`INSERT INTO audit_events (org_id, actor_id, action, meta) VALUES (${s.orgId}, ${s.userId}, 'event.schedule', ${JSON.stringify({ id, raw, grace, opens })})`;
   return NextResponse.redirect(new URL(`/panel/${id}`, req.url), 303);
 }

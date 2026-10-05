@@ -39,6 +39,7 @@ export async function POST(req: Request) {
       await sql`INSERT INTO tickets (order_id, event_id, zone_id, code, holder_name, holder_doc, seat)
         VALUES (${orderId}, ${String(order.event_id)}, ${String(order.zone_id)}, ${newTicketCode()}, ${String(holders[i]?.name || order.buyer_name)}, ${String(holders[i]?.doc || "")}, ${String(holders[i]?.seat || "")})`;
     }
+    if (order.hold_id) await sql`DELETE FROM seat_holds WHERE hold_id=${String(order.hold_id)}`;
     const ev = await sql`SELECT title FROM events WHERE id=${String(order.event_id)} LIMIT 1`;
     const appUrl = baseUrl(req);
     await sendEmail(

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ticketQrPayload } from "@/lib/tickets";
+import PrintButton from "@/components/print-button";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,10 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
       <p><strong>{String(row.code)}</strong></p>
       <div className="qr"><img src={qr} alt="QR entrada" width={220} height={220} /></div>
       <p className="muted">Muestra este QR en puerta. Contiene firma anti-falsificación.</p>
+      <div className="row no-print" style={{ marginTop: 12 }}>
+        <a className="btn btn-blue" href={`/api/tickets/${encodeURIComponent(String(row.code))}/ics`}>Añadir al calendario</a>
+        <PrintButton />
+      </div>
     </>
   );
 }

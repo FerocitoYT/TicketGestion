@@ -49,30 +49,44 @@ export async function POST(req: Request) {
   const holders = parseHolders(String(form.get("holders") || ""), qty, buyerName);
   // Asientos elegidos en el plano (solo zonas numeradas): sustituyen al asiento libre del titular.
   let picked: string[] = [];
+  let holdIdUsed = "";
   try {
     const raw = JSON.parse(String(form.get("seats") || "[]"));
     if (Array.isArray(raw)) picked = raw.map((s) => normalizeSeat(String(s))).filter(Boolean);
   } catch { /* sin asientos */ }
   const mapped = Number(zones[0].seat_rows) > 0 && Number(zones[0].seat_cols) > 0;
   if (mapped) {
-    const uniq = [...new Set(picked)];
-    if (uniq.length === 0) return NextResponse.json({ error: "Elige tus asientos en el plano" }, { status: 400 });
-    if (uniq.length > maxOrder) return NextResponse.json({ error: `Máximo ${maxOrder} asientos por compra` }, { status: 400 });
+    // Flujo con reserva: los asientos llegan bloqueados 10 min con holdId.
+    const holdId = String(form.get("holdId") || "");
+    if (!holdId) return NextResponse.json({ error: "Reserva primero tus asientos en el plano" }, { status: 400 });
+    const uniq = [...new Set(picked)].sort();
+    if (uniq.length === 0 || uniq.length > maxOrder || qty !== uniq.length) {
+      return NextResponse.json({ error: "Asientos inválidos para esta compra" }, { status: 400 });
+    }
     if (!uniq.every((s) => validSeat(s, Number(zones[0].seat_rows), Number(zones[0].seat_cols)))) {
       return NextResponse.json({ error: "Asiento fuera del plano" }, { status: 400 });
     }
+    await sql`DELETE FROM seat_holds WHERE expires_at < now()`;
+    const mine = await sql`SELECT seat FROM seat_holds WHERE hold_id=${holdId} AND zone_id=${zoneId} AND expires_at > now()`;
+    const mineSet = mine.map((m) => String(m.seat)).sort();
+    if (mineSet.length !== uniq.length || !uniq.every((s, i) => s === mineSet[i])) {
+      return NextResponse.json({ error: "Tu reserva caducó o cambió. Elige de nuevo los asientos." }, { status: 410 });
+    }
     const busy = await sql`SELECT seat FROM tickets WHERE zone_id=${zoneId} AND seat = ANY(${uniq}) AND status IN ('valid','used')`;
-    if (busy.length > 0) return NextResponse.json({ error: `Asiento ocupado: ${busy.map((b) => String(b.seat)).join(", ")}. Elige otros.` }, { status: 409 });
-    if (qty !== uniq.length) return NextResponse.json({ error: "La cantidad no coincide con los asientos elegidos" }, { status: 400 });
-    picked = [...uniq].sort();
-    // Los asientos del plano viajan con el pedido (también para el webhook de Stripe).
+    if (busy.length > 0) return NextResponse.json({ error: `Se vendió mientras reservabas: ${busy.map((b) => String(b.seat)).join(", ")}` }, { status: 409 });
+    picked = uniq;
     for (let i = 0; i < qty; i++) holders[i].seat = picked[i];
+    // holders viaja con el pedido (también para el webhook de Stripe); la reserva se consume al pagar.
+    holdIdUsed = holdId;
   }
   const created = await sql`
-    INSERT INTO orders (event_id, zone_id, buyer_name, buyer_email, qty, total_cents, idempotency_key, holders)
-    VALUES (${eventId}, ${zoneId}, ${buyerName}, ${buyerEmail}, ${qty}, ${total}, ${idem}, ${JSON.stringify(holders)}) RETURNING id`;
+    INSERT INTO orders (event_id, zone_id, buyer_name, buyer_email, qty, total_cents, idempotency_key, holders, hold_id)
+    VALUES (${eventId}, ${zoneId}, ${buyerName}, ${buyerEmail}, ${qty}, ${total}, ${idem}, ${JSON.stringify(holders)}, ${holdIdUsed || null}) RETURNING id`;
   const orderId = created[0].id as string;
   const appUrl = baseUrl(req);
+  const releaseHold = async () => {
+    if (holdIdUsed) await sql`DELETE FROM seat_holds WHERE hold_id=${holdIdUsed}`;
+  };
   // MODO PRUEBAS: sin Stripe se simula el pago y se emiten los tickets directamente.
   if (!stripeConfigured()) {
     const upd = await sql`
@@ -80,6 +94,7 @@ export async function POST(req: Request) {
       WHERE id=${zoneId} AND sold + ${qty} <= capacity RETURNING id`;
     if (!upd[0]) {
       await sql`UPDATE orders SET status='cancelled' WHERE id=${orderId}`;
+      await releaseHold();
       return NextResponse.json({ error: "Sin stock suficiente" }, { status: 400 });
     }
     await sql`UPDATE orders SET status='paid' WHERE id=${orderId}`;
@@ -89,6 +104,7 @@ export async function POST(req: Request) {
         await sql`INSERT INTO tickets (order_id, event_id, zone_id, code, holder_name, holder_doc, seat)
           VALUES (${orderId}, ${eventId}, ${zoneId}, ${newTicketCode()}, ${holders[i].name}, ${holders[i].doc}, ${seat})`;
       }
+      await releaseHold();
     } catch {
       // Carrera por el mismo asiento (índice único): anula la compra simulada.
       await sql`DELETE FROM tickets WHERE order_id=${orderId}`;

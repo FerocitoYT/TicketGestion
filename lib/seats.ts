@@ -1,3 +1,5 @@
+// Minutos que dura la reserva de asientos sin pago.
+export const HOLD_MINUTES = 10;
 // Mapa de asientos: filas A..Z, columnas 1..N. Etiqueta: letra+numero (ej. F12).
 export function seatName(row: number, col: number): string {
   return `${String.fromCharCode(65 + row)}${col + 1}`;

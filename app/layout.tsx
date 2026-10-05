@@ -5,7 +5,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "TicketGestion — Entradas para conciertos, deporte y teatro",
   description: "Compra entradas oficiales para conciertos, deporte, teatro y festivales. QR nominativo y acceso sin colas.",
+  manifest: "/manifest.webmanifest",
 };
+
+export const viewport = { themeColor: "#026cdf" };
 
 const CATS = [
   ["concierto", "Conciertos"],
