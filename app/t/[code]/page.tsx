@@ -16,7 +16,7 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
   try {
     const sql = getDb();
     const rows = await sql`
-      SELECT t.code, t.status, t.holder_name, t.holder_doc, t.seat, e.title AS event, z.name AS zone, e.starts_at
+      SELECT t.code, t.status, t.holder_name, t.holder_doc, t.seat, e.title AS event, e.slug AS event_slug, z.name AS zone, e.starts_at
       FROM tickets t JOIN events e ON e.id=t.event_id JOIN zones z ON z.id=t.zone_id
       WHERE t.code=${code} LIMIT 1`;
     row = rows[0] as Record<string, unknown> | undefined;
@@ -53,6 +53,7 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
         <a className="btn btn-blue" href={`/api/tickets/${encodeURIComponent(String(row.code))}/ics`}>Añadir al calendario</a>
         <PrintButton />
       </div>
+      <p className="no-print" style={{ marginTop: 14 }}><a href={`/encuestas/${encodeURIComponent(String(row.event_slug || ""))}`}>Opina sobre este evento</a></p>
     </>
   );
 }

@@ -13,8 +13,9 @@ async function setStatus(req: Request, status: string) {
   const sql = getDb();
   await sql`UPDATE events SET status=${status} WHERE id=${id} AND org_id=${s.orgId}`;
   await sql`INSERT INTO audit_events (org_id, actor_id, action, meta) VALUES (${s.orgId}, ${s.userId}, ${"event." + status}, ${JSON.stringify({ id })})`;
-  // Al publicar: avisa a los suscritos a sus artistas (una vez por email).
+  // Al publicar: crea la encuesta por defecto y avisa a suscritos de sus artistas.
   if (status === "published") {
+    await sql`INSERT INTO surveys (event_id) VALUES (${id}) ON CONFLICT (event_id) DO NOTHING`;
     try {
       const ev = await sql`SELECT title, slug FROM events WHERE id=${id} LIMIT 1`;
       const subs = await sql`

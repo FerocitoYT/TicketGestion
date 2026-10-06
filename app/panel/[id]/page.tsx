@@ -2,6 +2,7 @@ import { getSession } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import ArtistSearch from "@/components/artist-search";
+import SurveyBlock from "@/components/survey-block";
 
 export const dynamic = "force-dynamic";
 
@@ -146,6 +147,8 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
       </form>
       <h2>Artistas del evento</h2>
       <ArtistSearch eventId={id} attached={attached as unknown as { id: string; name: string; photo: string }[]} />
+      <h2>Encuesta de satisfacción</h2>
+      <SurveyBlock eventId={id} />
       <h2>Últimos pedidos</h2>
       <table><thead><tr><th>Email</th><th>Cant</th><th>Total</th><th>Estado</th></tr></thead>
         <tbody>{orders.map((o) => <tr key={o.id as string}><td>{String(o.buyer_email)}</td><td>{String(o.qty)}</td><td>{(Number(o.total_cents) / 100).toFixed(2)} €</td><td>{String(o.status)}</td></tr>)}</tbody>
