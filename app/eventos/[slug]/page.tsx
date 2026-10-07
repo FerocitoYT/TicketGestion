@@ -88,12 +88,14 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
               <p className="muted">Entradas a la venta próximamente.</p>
             ) : (
               sessions.map((ses) => {
-                const sz = zones.filter((z) => String(z.session_id) === String(ses.id) && Number(z.capacity) - Number(z.sold) > 0);
+                const sz = zones.filter((z) => String(z.session_id) === String(ses.id));
+                const avail = sz.filter((z) => Number(z.capacity) - Number(z.sold) > 0);
+                const soldout = sz.filter((z) => Number(z.capacity) - Number(z.sold) <= 0);
                 if (sz.length === 0) return null;
                 return (
                   <div key={String(ses.id)} style={{ marginBottom: 12 }}>
                     <p className="muted" style={{ margin: "8px 0" }}><strong>{new Date(String(ses.starts_at)).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</strong></p>
-                    {sz.map((z) => (
+                    {avail.map((z) => (
                       <div key={String(z.id)} className="zone" style={{ marginBottom: 10 }}>
                         <div>
                           <strong>{String(z.name)}</strong><br />
@@ -102,6 +104,18 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
                         <div style={{ textAlign: "right" }}>
                           <div style={{ fontSize: 20, fontWeight: 800 }}>{(Number(z.price_cents) / 100).toFixed(2)} €</div>
                           <a className="btn btn-blue" style={{ marginTop: 6 }} href={`/comprar?zone=${String(z.id)}`}>Elegir</a>
+                        </div>
+                      </div>
+                    ))}
+                    {soldout.map((z) => (
+                      <div key={String(z.id)} className="zone" style={{ marginBottom: 10, opacity: 0.75 }}>
+                        <div>
+                          <strong>{String(z.name)}</strong><br />
+                          <span className="muted">Agotada</span>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontSize: 20, fontWeight: 800 }}>{(Number(z.price_cents) / 100).toFixed(2)} €</div>
+                          <a className="btn btn-ghost" style={{ marginTop: 6 }} href={`/comprar?zone=${String(z.id)}`}>Avísame</a>
                         </div>
                       </div>
                     ))}

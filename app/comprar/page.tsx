@@ -11,7 +11,7 @@ export default async function ComprarPage({ searchParams }: { searchParams: Prom
     const sql = getDb();
     const rows = await sql`
       SELECT z.id, z.name, z.price_cents, z.capacity, z.sold, z.seat_rows, z.seat_cols,
-             z.session_id, e.id AS event_id, e.title AS event_title, e.status,
+             z.session_id, e.id AS event_id, e.title AS event_title, e.slug AS eslug, e.status,
              e.max_per_order, s.starts_at AS ses_start,
              e.image_url AS poster
       FROM zones z JOIN events e ON e.id=z.event_id LEFT JOIN sessions s ON s.id=z.session_id
@@ -20,7 +20,18 @@ export default async function ComprarPage({ searchParams }: { searchParams: Prom
     const z = rows[0];
     const left = Number(z.capacity) - Number(z.sold);
     if (left <= 0) {
-      return (<><h1>Sin disponibilidad</h1><p className="muted">Esta zona se ha agotado. <a href="/eventos">Ver otros eventos</a>.</p></>);
+      return (<>
+        <h1>{String(z.event_title)} — {String(z.name)}</h1>
+        <p className="alert err">Zona agotada.</p>
+        <h3>Avísame si se libera</h3>
+        <form action="/api/lista-espera" method="post" className="form">
+          <input type="hidden" name="zoneId" value={String(z.id)} />
+          <label>Email<input name="email" type="email" required placeholder="tu@email.com" /></label>
+          <label>Entradas<input name="qty" type="number" min={1} max={Number(z.max_per_order ?? 10)} defaultValue={1} /></label>
+          <button>Avisarme</button>
+        </form>
+        <p><a href={`/eventos/${z.eslug}`}>← Volver al evento</a></p>
+      </>);
     }
     const k = process.env.STRIPE_SECRET_KEY || "";
     const simulated = !(k.startsWith("sk_") && !k.includes("replace_me"));
