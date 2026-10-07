@@ -37,14 +37,27 @@ export async function POST(req: Request) {
     }
   }
   let unit = Number(zones[0].price_cents);
+  let promoterId: string | null = null;
+  let commission = 0;
   if (promo) {
     const p = await sql`SELECT * FROM promo_codes WHERE event_id=${eventId} AND code=${promo} AND active=true LIMIT 1`;
     if (p[0] && (Number(p[0].max_uses) === 0 || Number(p[0].used) < Number(p[0].max_uses))) {
       unit = Math.round(unit * (1 - Number(p[0].pct_off) / 100));
       await sql`UPDATE promo_codes SET used = used + 1 WHERE id=${p[0].id}`;
+    } else {
+      // Si no es cupón, puede ser código de promotor (descuento + comisión).
+      const pr = await sql`SELECT * FROM promoters WHERE event_id=${eventId} AND code=${promo} AND active=true LIMIT 1`;
+      if (pr[0]) {
+        promoterId = pr[0].id as string;
+        unit = Math.round(unit * (1 - Number(pr[0].discount_pct) / 100));
+      }
     }
   }
   const total = unit * qty;
+  if (promoterId) {
+    const pct = await sql`SELECT commission_pct FROM promoters WHERE id=${promoterId} LIMIT 1`;
+    commission = Math.round(total * (Number(pct[0]?.commission_pct || 0) / 100));
+  }
   const idem = randomBytes(16).toString("hex");
   const holders = parseHolders(String(form.get("holders") || ""), qty, buyerName);
   // Asientos elegidos en el plano (solo zonas numeradas): sustituyen al asiento libre del titular.
@@ -80,8 +93,8 @@ export async function POST(req: Request) {
     holdIdUsed = holdId;
   }
   const created = await sql`
-    INSERT INTO orders (event_id, zone_id, buyer_name, buyer_email, qty, total_cents, idempotency_key, holders, hold_id)
-    VALUES (${eventId}, ${zoneId}, ${buyerName}, ${buyerEmail}, ${qty}, ${total}, ${idem}, ${JSON.stringify(holders)}, ${holdIdUsed || null}) RETURNING id`;
+    INSERT INTO orders (event_id, zone_id, buyer_name, buyer_email, qty, total_cents, idempotency_key, holders, hold_id, promoter_id, commission_cents)
+    VALUES (${eventId}, ${zoneId}, ${buyerName}, ${buyerEmail}, ${qty}, ${total}, ${idem}, ${JSON.stringify(holders)}, ${holdIdUsed || null}, ${promoterId}, ${commission}) RETURNING id`;
   const orderId = created[0].id as string;
   const appUrl = baseUrl(req);
   const releaseHold = async () => {

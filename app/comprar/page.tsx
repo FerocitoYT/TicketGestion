@@ -4,9 +4,10 @@ import ComprarClient from "@/components/comprar-client";
 
 export const dynamic = "force-dynamic";
 
-export default async function ComprarPage({ searchParams }: { searchParams: Promise<{ zone?: string }> }) {
+export default async function ComprarPage({ searchParams }: { searchParams: Promise<{ zone?: string; promo?: string }> }) {
   const sp = await searchParams;
   if (!sp.zone) notFound();
+  const promo0 = (sp.promo || "").toUpperCase().trim().slice(0, 32);
   try {
     const sql = getDb();
     const rows = await sql`
@@ -46,6 +47,7 @@ export default async function ComprarPage({ searchParams }: { searchParams: Prom
         <ComprarClient
           eventId={String(z.event_id)}
           eventTitle={String(z.event_title)}
+          promo0={promo0}
           zone={{
             id: String(z.id), name: String(z.name), price_cents: Number(z.price_cents),
             capacity: Number(z.capacity), sold: Number(z.sold),

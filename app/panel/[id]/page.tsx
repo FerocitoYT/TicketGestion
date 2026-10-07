@@ -5,6 +5,7 @@ import ArtistSearch from "@/components/artist-search";
 import SurveyBlock from "@/components/survey-block";
 import AccredBlock from "@/components/accred-block";
 import WaitlistBlock from "@/components/waitlist-block";
+import PromotersBlock from "@/components/promoters-block";
 
 export const dynamic = "force-dynamic";
 
@@ -163,6 +164,8 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
       />
       <h2>Lista de espera</h2>
       <WaitlistBlock eventId={id} />
+      <h2>Promotores y afiliados</h2>
+      <PromotersBlock eventId={id} slug={String(ev[0].slug)} />
       <h2>Últimos pedidos</h2>
       <table><thead><tr><th>Email</th><th>Cant</th><th>Total</th><th>Estado</th></tr></thead>
         <tbody>{orders.map((o) => <tr key={o.id as string}><td>{String(o.buyer_email)}</td><td>{String(o.qty)}</td><td>{(Number(o.total_cents) / 100).toFixed(2)} €</td><td>{String(o.status)}</td></tr>)}</tbody>

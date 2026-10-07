@@ -20,8 +20,10 @@ async function getEvent(slug: string) {
   };
 }
 
-export default async function EventPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function EventPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ promo?: string }> }) {
   const { slug } = await params;
+  const sp = await searchParams;
+  const promo = (sp.promo || "").toUpperCase().trim().slice(0, 32);
   let data: Awaited<ReturnType<typeof getEvent>>;
   try {
     data = await getEvent(slug);
@@ -84,6 +86,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
           </div>
           <aside className="buybox">
             <h3 style={{ marginTop: 0 }}>Comprar entradas</h3>
+            {promo && <p><span className="badge">Código {promo} aplicado: se usará al pagar</span></p>}
             {zones.length === 0 || sessions.length === 0 ? (
               <p className="muted">Entradas a la venta próximamente.</p>
             ) : (
@@ -103,7 +106,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
                         </div>
                         <div style={{ textAlign: "right" }}>
                           <div style={{ fontSize: 20, fontWeight: 800 }}>{(Number(z.price_cents) / 100).toFixed(2)} €</div>
-                          <a className="btn btn-blue" style={{ marginTop: 6 }} href={`/comprar?zone=${String(z.id)}`}>Elegir</a>
+                          <a className="btn btn-blue" style={{ marginTop: 6 }} href={`/comprar?zone=${String(z.id)}${promo ? `&promo=${encodeURIComponent(promo)}` : ""}`}>Elegir</a>
                         </div>
                       </div>
                     ))}

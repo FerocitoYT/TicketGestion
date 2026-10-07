@@ -2,12 +2,13 @@
 import { useEffect, useState } from "react";
 import { seatName, findTogether } from "@/lib/seats";
 
-export default function ComprarClient({ eventId, eventTitle, zone, maxOrder, simulated }: {
+export default function ComprarClient({ eventId, eventTitle, zone, maxOrder, simulated, promo0 }: {
   eventId: string;
   eventTitle: string;
   zone: { id: string; name: string; price_cents: number; capacity: number; sold: number; seat_rows: number; seat_cols: number; session_label: string };
   maxOrder: number;
   simulated: boolean;
+  promo0: string;
 }) {
   const mapped = zone.seat_rows > 0;
   const [taken, setTaken] = useState<string[]>([]);
@@ -130,7 +131,7 @@ export default function ComprarClient({ eventId, eventTitle, zone, maxOrder, sim
           <p className="alert ok"><strong>Paso 2 — reservado para {eventTitle}</strong><br />{zone.name} · {[...hold.seats].sort().join(", ")} · Te quedan <strong>{mm}:{ss}</strong>. Sin pago se libera solo.</p>
           <label>Nombre completo<input name="buyerName" required placeholder="Tu nombre" /></label>
           <label>Email<input name="buyerEmail" type="email" required placeholder="tu@email.com" /></label>
-          <label>Código promo<input name="promo" placeholder="EARLY10" /></label>
+          <label>Código promo<input name="promo" placeholder="EARLY10" defaultValue={promo0} /></label>
           <label>Titulares (uno por línea: “Nombre | DNI”, en orden de asiento)<textarea name="holders" rows={hold.seats.length} placeholder="Ana López | 12345678A" /></label>
           {simulated
             ? <><p className="alert ok">Modo pruebas: pago simulado. Tarjeta 4242 4242 4242 4242.</p><button>Pagar (simulado)</button></>
@@ -146,7 +147,7 @@ export default function ComprarClient({ eventId, eventTitle, zone, maxOrder, sim
           <label>Email<input name="buyerEmail" type="email" required placeholder="tu@email.com" /></label>
           <div className="row">
             <label>Cantidad (máx {maxOrder})<input name="qty" type="number" min={1} max={maxOrder} defaultValue={1} required /></label>
-            <label>Código promo<input name="promo" placeholder="EARLY10" /></label>
+            <label>Código promo<input name="promo" placeholder="EARLY10" defaultValue={promo0} /></label>
           </div>
           <label>Titulares (uno por línea: “Nombre | DNI | Asiento opcional”)<textarea name="holders" rows={2} placeholder="Ana López | 12345678A" /></label>
           {simulated
