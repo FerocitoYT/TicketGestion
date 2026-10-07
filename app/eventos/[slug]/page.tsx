@@ -12,11 +12,20 @@ async function getEvent(slug: string) {
   const sessions = await sql`SELECT id, starts_at, ends_at FROM sessions WHERE event_id=${ev[0].id} AND status='scheduled' ORDER BY starts_at ASC`;
   const zones = await sql`SELECT id, name, price_cents, capacity, sold, session_id, seat_rows, seat_cols FROM zones WHERE event_id=${ev[0].id} ORDER BY price_cents ASC`;
   const artists = await sql`SELECT a.name, a.slug FROM event_artists ea JOIN artists a ON a.id=ea.artist_id WHERE ea.event_id=${ev[0].id} ORDER BY a.name`;
+  const program = await sql`SELECT p.starts_at, p.title, p.description, a.name AS artist, a.slug AS aslug
+    FROM program_slots p LEFT JOIN artists a ON a.id=p.artist_id WHERE p.event_id=${ev[0].id} ORDER BY p.starts_at ASC`;
+  const gallery = await sql`SELECT image_url, caption FROM event_gallery WHERE event_id=${ev[0].id} ORDER BY created_at ASC`;
+  const venueMap = ev[0].venue_id
+    ? String((await sql`SELECT map_url FROM venues WHERE id=${ev[0].venue_id} LIMIT 1`)[0]?.map_url || "")
+    : "";
   return {
     event: ev[0] as Record<string, unknown>,
     sessions: sessions as unknown as { id: string; starts_at: string; ends_at: string | null }[],
     zones: zones as unknown as { id: string; name: string; price_cents: number; capacity: number; sold: number; session_id: string; seat_rows: number; seat_cols: number }[],
     artists: artists as unknown as { name: string; slug: string }[],
+    program: program as unknown as { starts_at: string; title: string; description: string; artist: string | null; aslug: string | null }[],
+    gallery: gallery as unknown as { image_url: string; caption: string }[],
+    venueMap,
   };
 }
 
@@ -31,7 +40,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
     return <p className="muted">Configura DATABASE_URL para ver eventos.</p>;
   }
   if (!data) notFound();
-  const { event, sessions, zones, artists } = data;
+  const { event, sessions, zones, artists, program, gallery, venueMap } = data;
   const totalLeft = zones.reduce((a, z) => a + Math.max(0, Number(z.capacity) - Number(z.sold)), 0);
   const dt = new Date(String(event.starts_at));
   return (
@@ -79,6 +88,33 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                 </div>
               );
             })}
+            <h3>Programa</h3>
+            {program.length === 0 && <p className="muted">Horarios por confirmar.</p>}
+            {program.map((p, i) => (
+              <div key={i} className="zone" style={{ marginBottom: 8 }}>
+                <div><strong>{new Date(String(p.starts_at)).toLocaleString("es-ES", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</strong></div>
+                <div>
+                  <strong>{p.aslug ? <a href={`/artistas/${p.aslug}`}>{String(p.title)}</a> : String(p.title)}</strong>
+                  <br /><span className="muted">{String(p.description || "")}</span>
+                </div>
+              </div>
+            ))}
+            {venueMap && (
+              <>
+                <h3>Cómo llegar</h3>
+                <img src={venueMap} alt="Plano del recinto" style={{ width: "100%", borderRadius: 12 }} />
+              </>
+            )}
+            {gallery.length > 0 && (
+              <>
+                <h3>Galería</h3>
+                <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px,1fr))" }}>
+                  {gallery.map((g, i) => (
+                    <img key={i} src={g.image_url} alt={g.caption} title={g.caption} style={{ width: "100%", borderRadius: 10 }} />
+                  ))}
+                </div>
+              </>
+            )}
             <h3>Preguntas frecuentes</h3>
             <p className="muted"><strong>¿La entrada lleva mi nombre?</strong> Sí: cada QR es nominativo y en puerta se comprueba el DNI.</p>
             <p className="muted"><strong>¿Puedo revenderla?</strong> No: el primer escaneo quema la entrada y las copias dejan de funcionar.</p>

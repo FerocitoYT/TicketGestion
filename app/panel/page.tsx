@@ -40,6 +40,24 @@ export default async function Panel() {
           </div>
           <button formAction="/api/panel/venues">Guardar recinto</button>
         </form>
+        <h2>Recintos y planos</h2>
+        {venues.map((v) => (
+          <div key={v.id as string} className="zone" style={{ marginBottom: 8 }}>
+            <div>
+              <strong>{String(v.name)}</strong> <span className="muted">{String(v.city || "")}</span><br />
+              {v.map_url
+                ? <a href={String(v.map_url)}>Ver plano actual</a>
+                : <span className="muted">Sin plano</span>}
+            </div>
+            <form action="/api/panel/venues/map" method="post" encType="multipart/form-data" className="row" style={{ maxWidth: 420 }}>
+              <input type="hidden" name="id" value={v.id as string} />
+              <input name="file" type="file" accept="image/jpeg,image/png,image/webp" style={{ maxWidth: 200 }} />
+              <input name="mapUrl" placeholder="o URL…" style={{ maxWidth: 200 }} />
+              <button>Subir plano</button>
+            </form>
+          </div>
+        ))}
+        {venues.length === 0 && <p className="muted">Sin recintos todavía.</p>}
         <h2>Crear evento</h2>
         <form action="/api/panel/events" method="post" className="form">
           <input name="title" required placeholder="Título (ej. Concierto …)" />
