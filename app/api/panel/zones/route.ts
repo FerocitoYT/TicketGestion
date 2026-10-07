@@ -15,7 +15,9 @@ export async function POST(req: Request) {
   if (!ses[0]) return NextResponse.json({ error: "Sesión no válida" }, { status: 400 });
   const rows = Math.min(40, Math.max(0, Number(form.get("seatRows") || 0)));
   const cols = Math.min(60, Math.max(0, Number(form.get("seatCols") || 0)));
-  await sql`INSERT INTO zones (event_id, session_id, name, price_cents, capacity, seat_rows, seat_cols)
-    VALUES (${eventId}, ${sessionId}, ${String(form.get("name") || "").slice(0, 120)}, ${cents}, ${Number(form.get("capacity") || 0)}, ${rows}, ${cols})`;
+  const accessible = String(form.get("accessible") || "") === "on";
+  const companionFree = String(form.get("companionFree") || "") !== "off";
+  await sql`INSERT INTO zones (event_id, session_id, name, price_cents, capacity, seat_rows, seat_cols, accessible, companion_free)
+    VALUES (${eventId}, ${sessionId}, ${String(form.get("name") || "").slice(0, 120)}, ${cents}, ${Number(form.get("capacity") || 0)}, ${rows}, ${cols}, ${accessible}, ${companionFree})`;
   return NextResponse.redirect(new URL(`/panel/${eventId}`, req.url), 303);
 }

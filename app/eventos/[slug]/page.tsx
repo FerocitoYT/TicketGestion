@@ -10,7 +10,7 @@ async function getEvent(slug: string) {
     FROM events e LEFT JOIN venues v ON v.id=e.venue_id WHERE e.slug=${slug} LIMIT 1`;
   if (!ev[0]) return null;
   const sessions = await sql`SELECT id, starts_at, ends_at FROM sessions WHERE event_id=${ev[0].id} AND status='scheduled' ORDER BY starts_at ASC`;
-  const zones = await sql`SELECT id, name, price_cents, capacity, sold, session_id, seat_rows, seat_cols FROM zones WHERE event_id=${ev[0].id} ORDER BY price_cents ASC`;
+  const zones = await sql`SELECT id, name, price_cents, capacity, sold, session_id, seat_rows, seat_cols, accessible FROM zones WHERE event_id=${ev[0].id} ORDER BY price_cents ASC`;
   const artists = await sql`SELECT a.name, a.slug FROM event_artists ea JOIN artists a ON a.id=ea.artist_id WHERE ea.event_id=${ev[0].id} ORDER BY a.name`;
   const program = await sql`SELECT p.starts_at, p.title, p.description, a.name AS artist, a.slug AS aslug
     FROM program_slots p LEFT JOIN artists a ON a.id=p.artist_id WHERE p.event_id=${ev[0].id} ORDER BY p.starts_at ASC`;
@@ -21,7 +21,7 @@ async function getEvent(slug: string) {
   return {
     event: ev[0] as Record<string, unknown>,
     sessions: sessions as unknown as { id: string; starts_at: string; ends_at: string | null }[],
-    zones: zones as unknown as { id: string; name: string; price_cents: number; capacity: number; sold: number; session_id: string; seat_rows: number; seat_cols: number }[],
+    zones: zones as unknown as { id: string; name: string; price_cents: number; capacity: number; sold: number; session_id: string; seat_rows: number; seat_cols: number; accessible: boolean }[],
     artists: artists as unknown as { name: string; slug: string }[],
     program: program as unknown as { starts_at: string; title: string; description: string; artist: string | null; aslug: string | null }[],
     gallery: gallery as unknown as { image_url: string; caption: string }[],
@@ -80,7 +80,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                   <div className="zones">
                     {sz.map((z) => (
                       <div key={String(z.id)} className="zone">
-                        <div><strong>{String(z.name)}</strong><br /><span className="muted">{Number(z.capacity) - Number(z.sold)} disponibles{Number(z.seat_rows) > 0 ? " · asientos numerados" : ""}</span></div>
+                        <div><strong>{String(z.name)}</strong><br /><span className="muted">{Number(z.capacity) - Number(z.sold)} disponibles{Number(z.seat_rows) > 0 ? " · asientos numerados" : ""}{z.accessible ? " · acceso adaptado" : ""}</span></div>
                         <div style={{ fontSize: 20, fontWeight: 800 }}>{(Number(z.price_cents) / 100).toFixed(2)} €</div>
                       </div>
                     ))}

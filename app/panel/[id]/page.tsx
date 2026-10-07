@@ -100,6 +100,10 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
           <input name="seatRows" type="number" min={0} max={40} placeholder="Filas (0 = sin numerar)" />
           <input name="seatCols" type="number" min={0} max={60} placeholder="Asientos por fila" />
         </div>
+        <div className="row">
+          <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" name="accessible" style={{ width: "auto" }} /> Zona adaptada (movilidad reducida)</label>
+          <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" name="companionFree" defaultChecked style={{ width: "auto" }} /> Acompañante gratis</label>
+        </div>
         <button formAction="/api/panel/zones">Añadir zona</button>
       </form>
       <table><thead><tr><th>Zona</th><th>Precio</th><th>Vendidas</th><th>Aforo</th></tr></thead>

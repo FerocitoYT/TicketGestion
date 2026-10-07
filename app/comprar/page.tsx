@@ -11,7 +11,7 @@ export default async function ComprarPage({ searchParams }: { searchParams: Prom
   try {
     const sql = getDb();
     const rows = await sql`
-      SELECT z.id, z.name, z.price_cents, z.capacity, z.sold, z.seat_rows, z.seat_cols,
+      SELECT z.id, z.name, z.price_cents, z.capacity, z.sold, z.seat_rows, z.seat_cols, z.accessible, z.companion_free,
              z.session_id, e.id AS event_id, e.title AS event_title, e.slug AS eslug, e.status,
              e.max_per_order, s.starts_at AS ses_start,
              e.image_url AS poster
@@ -52,6 +52,7 @@ export default async function ComprarPage({ searchParams }: { searchParams: Prom
             id: String(z.id), name: String(z.name), price_cents: Number(z.price_cents),
             capacity: Number(z.capacity), sold: Number(z.sold),
             seat_rows: Number(z.seat_rows), seat_cols: Number(z.seat_cols), session_label: sesLabel,
+            accessible: Boolean(z.accessible), companion_free: Boolean(z.companion_free),
           }}
           maxOrder={Number(z.max_per_order ?? 10)}
           simulated={simulated}

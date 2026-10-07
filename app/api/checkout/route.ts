@@ -19,12 +19,17 @@ export async function POST(req: Request) {
   const zoneId = String(form.get("zoneId") || "");
   const buyerName = String(form.get("buyerName") || "").slice(0, 120);
   const buyerEmail = String(form.get("buyerEmail") || "").toLowerCase().slice(0, 160);
-  const qty = Math.min(50, Math.max(1, Number(form.get("qty") || 1)));
+  let qty = Math.min(50, Math.max(1, Number(form.get("qty") || 1)));
   const promo = String(form.get("promo") || "").toUpperCase().trim();
   if (!eventId || !zoneId || !buyerName || !buyerEmail) return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
   const sql = getDb();
   const zones = await sql`SELECT z.*, e.title, e.status, e.max_per_order, e.max_per_buyer FROM zones z JOIN events e ON e.id=z.event_id WHERE z.id=${zoneId} AND z.event_id=${eventId} LIMIT 1`;
   if (!zones[0] || zones[0].status !== "published") return NextResponse.json({ error: "Zona no disponible" }, { status: 400 });
+  // Acompañante en zona adaptada: una entrada extra a su nombre (gratis o a precio según evento).
+  // Con mapa, su asiento ya va en la selección; sin mapa, se suma uno a la cantidad.
+  const companion = String(form.get("companion") || "") === "1" && Boolean(zones[0].accessible);
+  const mappedEarly = Number(zones[0].seat_rows) > 0 && Number(zones[0].seat_cols) > 0;
+  if (companion && !mappedEarly) qty = Math.min(50, qty + 1);
   const maxOrder = Math.max(1, Number(zones[0].max_per_order ?? 10));
   if (qty > maxOrder) return NextResponse.json({ error: `Máximo ${maxOrder} entradas por compra en este evento` }, { status: 400 });
   if (Number(zones[0].sold) + qty > Number(zones[0].capacity)) return NextResponse.json({ error: "Sin stock suficiente" }, { status: 400 });
@@ -53,13 +58,17 @@ export async function POST(req: Request) {
       }
     }
   }
-  const total = unit * qty;
+  let total = unit * qty;
+  if (companion && zones[0].companion_free) total = Math.max(0, total - unit);
   if (promoterId) {
     const pct = await sql`SELECT commission_pct FROM promoters WHERE id=${promoterId} LIMIT 1`;
     commission = Math.round(total * (Number(pct[0]?.commission_pct || 0) / 100));
   }
   const idem = randomBytes(16).toString("hex");
-  const holders = parseHolders(String(form.get("holders") || ""), qty, buyerName);
+  const holders = parseHolders(String(form.get("holders") || ""), companion ? Math.max(1, qty - 1) : qty, buyerName);
+  if (companion) {
+    holders.push({ name: `Acompañante de ${holders[0]?.name || buyerName}`.slice(0, 120), doc: "", seat: "" });
+  }
   // Asientos elegidos en el plano (solo zonas numeradas): sustituyen al asiento libre del titular.
   let picked: string[] = [];
   let holdIdUsed = "";
