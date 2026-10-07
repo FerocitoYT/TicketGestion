@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import ArtistSearch from "@/components/artist-search";
 import SurveyBlock from "@/components/survey-block";
+import AccredBlock from "@/components/accred-block";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,9 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
     (SELECT COALESCE(SUM(sold),0) FROM zones z WHERE z.session_id=s.id) AS sold
     FROM sessions s WHERE s.event_id=${id} ORDER BY s.starts_at ASC`;
   const attached = await sql`SELECT a.id, a.name, a.photo_url AS photo FROM event_artists ea JOIN artists a ON a.id=ea.artist_id WHERE ea.event_id=${id} ORDER BY a.name`;
+  const zonesList = await sql`SELECT z.id, z.name FROM zones z JOIN sessions s ON s.id=z.session_id WHERE z.event_id=${id} AND s.status='scheduled' ORDER BY s.starts_at, z.price_cents`;
+  const accreds = await sql`SELECT t.code, t.kind, t.holder_name AS holder, t.status, z.name AS zone
+    FROM tickets t JOIN zones z ON z.id=t.zone_id WHERE t.event_id=${id} AND t.kind <> 'general' ORDER BY t.created_at DESC LIMIT 200`;
   const staff = await sql`SELECT u.id, u.name, u.email, m.role, (es.user_id IS NOT NULL) AS assigned
     FROM memberships m JOIN users u ON u.id=m.user_id LEFT JOIN event_staff es ON es.user_id=u.id AND es.event_id=${id}
     WHERE m.org_id=${s.orgId} ORDER BY u.name`;
@@ -149,6 +153,13 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
       <ArtistSearch eventId={id} attached={attached as unknown as { id: string; name: string; photo: string }[]} />
       <h2>Encuesta de satisfacción</h2>
       <SurveyBlock eventId={id} />
+      <h2>Acreditaciones (VIP / prensa / invitados)</h2>
+      <p className="muted">Entradas gratuitas con cupo de zona. Se nominan en puerta con DNI.</p>
+      <AccredBlock
+        eventId={id}
+        zones={zonesList as unknown as { id: string; name: string }[]}
+        existing={accreds as unknown as { code: string; kind: string; holder: string; status: string; zone: string }[]}
+      />
       <h2>Últimos pedidos</h2>
       <table><thead><tr><th>Email</th><th>Cant</th><th>Total</th><th>Estado</th></tr></thead>
         <tbody>{orders.map((o) => <tr key={o.id as string}><td>{String(o.buyer_email)}</td><td>{String(o.qty)}</td><td>{(Number(o.total_cents) / 100).toFixed(2)} €</td><td>{String(o.status)}</td></tr>)}</tbody>

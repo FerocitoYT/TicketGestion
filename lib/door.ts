@@ -52,6 +52,7 @@ export async function validateScan(
     code, event: String(t.event), zone: String(t.zone),
     holder: String(t.holder_name || ""), doc: String(t.holder_doc || ""),
     seat: String(t.seat || ""),
+    kind: String(t.kind || "general"),
     buyer: String(t.buyer_name || ""), email: String(t.buyer_email || ""),
   };
   const history = await sql`SELECT result, gate, created_at FROM scans WHERE ticket_id=${String(t.id)} ORDER BY created_at DESC LIMIT 5`;

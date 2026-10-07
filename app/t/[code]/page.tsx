@@ -16,7 +16,7 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
   try {
     const sql = getDb();
     const rows = await sql`
-      SELECT t.code, t.status, t.holder_name, t.holder_doc, t.seat, e.title AS event, e.slug AS event_slug, z.name AS zone, e.starts_at
+      SELECT t.code, t.status, t.holder_name, t.holder_doc, t.seat, t.kind, e.title AS event, e.slug AS event_slug, z.name AS zone, e.starts_at
       FROM tickets t JOIN events e ON e.id=t.event_id JOIN zones z ON z.id=t.zone_id
       WHERE t.code=${code} LIMIT 1`;
     row = rows[0] as Record<string, unknown> | undefined;
@@ -45,6 +45,9 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
   return (
     <>
       <h1>{String(row.event)}</h1>
+      {String(row.kind || "general") !== "general" && (
+        <p><span className="badge">ACREDITACIÓN {String(row.kind).toUpperCase()}</span></p>
+      )}
       <p className="muted">{String(row.zone)} · Titular: <strong>{String(row.holder_name || "")}</strong>{String(row.holder_doc || "") ? ` · ${row.holder_doc}` : ""}{String(row.seat || "") ? ` · Asiento ${String(row.seat)}` : ""} · {String(row.status)}</p>
       <p><strong>{String(row.code)}</strong></p>
       <div className="qr"><img src={qr} alt="QR entrada" width={220} height={220} /></div>
