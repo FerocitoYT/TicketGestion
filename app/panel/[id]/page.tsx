@@ -8,6 +8,8 @@ import WaitlistBlock from "@/components/waitlist-block";
 import PromotersBlock from "@/components/promoters-block";
 import ProgramBlock from "@/components/program-block";
 import GalleryBlock from "@/components/gallery-block";
+import ShiftsBlock from "@/components/shifts-block";
+import EventIncidentsBlock from "@/components/event-incidents-block";
 
 export const dynamic = "force-dynamic";
 
@@ -141,8 +143,7 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
         </div>
         <button formAction="/api/panel/events/limits">Guardar límites</button>
       </form>
-      <h2>Personal de puerta asignado</h2>
-      <p className="muted">Solo este personal puede validar entradas de este evento. El propietario siempre puede.</p>
+      <h2>Personal de puerta asignado</h2>      <p className="muted">Solo este personal puede validar entradas de este evento. El propietario siempre puede.</p>
       <form action="/api/panel/event-staff" method="post" className="form">
         <input type="hidden" name="eventId" value={id} />
         {staff.map((m) => (
@@ -153,6 +154,10 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
         ))}
         <button formAction="/api/panel/event-staff">Guardar asignación</button>
       </form>
+      <h2>Turnos</h2>
+      <ShiftsBlock eventId={id} />
+      <h2>Incidencias</h2>
+      <EventIncidentsBlock eventId={id} canResolve={true} />
       <h2>Artistas del evento</h2>
       <ArtistSearch eventId={id} attached={attached as unknown as { id: string; name: string; photo: string }[]} />
       <h2>Encuesta de satisfacción</h2>

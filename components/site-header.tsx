@@ -38,6 +38,7 @@ export default function SiteHeader() {
           <a href="/artistas">Artistas</a>
           {isScanner && <a href="/validar">Validar</a>}
           {isScanner && <a href="/mis-registros">Mis registros</a>}
+          {isScanner && <a href="/incidencias">Incidencias</a>}
           {isStaff && <a href="/panel">Panel</a>}
           {!me && <a href="/panel">Vende con nosotros</a>}
           {!me && <a href="/validar" className="btn-small">Acceso personal</a>}
@@ -62,6 +63,8 @@ export default function SiteHeader() {
             <p className="drawer-sec">Puerta</p>
             <a href="/validar" onClick={() => setOpen(false)}>Control de acceso</a>
             <a href="/mis-registros" onClick={() => setOpen(false)}>Mis registros</a>
+            <a href="/mis-turnos" onClick={() => setOpen(false)}>Mis turnos</a>
+            <a href="/incidencias" onClick={() => setOpen(false)}>Incidencias</a>
           </>
         )}
         {!isScanner && (
