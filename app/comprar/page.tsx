@@ -23,7 +23,7 @@ export default async function ComprarPage({ searchParams }: { searchParams: Prom
     if (!zoneId) notFound();
     const rows = await sql`
       SELECT z.id, z.name, z.price_cents, z.capacity, z.sold, z.seat_rows, z.seat_cols, z.accessible, z.companion_free,
-             z.session_id, e.id AS event_id, e.title AS event_title, e.slug AS eslug, e.status,
+             z.session_id, e.id AS event_id, e.title AS event_title, e.slug AS eslug, e.status, e.min_age,
              e.max_per_order, s.starts_at AS ses_start,
              e.image_url AS poster
       FROM zones z JOIN events e ON e.id=z.event_id LEFT JOIN sessions s ON s.id=z.session_id
@@ -54,6 +54,9 @@ export default async function ComprarPage({ searchParams }: { searchParams: Prom
       <>
         <p className="crumbs"><a href="/">Inicio</a> / {String(z.event_title)} / {String(z.name)}</p>
         <h1>{String(z.event_title)}</h1>
+        {Number(z.min_age ?? 0) > 0 && (
+          <p className="alert err">Evento +{String(z.min_age)}: en puerta se pedirá el DNI y se comprobará la edad.</p>
+        )}
         <p><span className="badge">{String(z.name)} · {(Number(z.price_cents) / 100).toFixed(2)} €</span> {sesLabel && <span className="badge">{sesLabel}</span>} <span className="badge">{left} disponibles</span></p>
         {pack && <p><span className="badge">Pack {pack.name}: {pack.qty} entradas por {(pack.price_cents / 100).toFixed(2)} € (sin promos)</span></p>}
         <ComprarClient

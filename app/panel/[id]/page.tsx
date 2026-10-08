@@ -63,6 +63,13 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
         <input type="hidden" name="id" value={id} />
         <label>Cómo llegar (transporte)<textarea name="transport" rows={2} defaultValue={String(ev[0].transport || "")} placeholder="Metro L2 parada…, bus 34, tranvía…" /></label>
         <label>Parking<textarea name="parking" rows={2} defaultValue={String(ev[0].parking || "")} placeholder="Parking norte 5 €, zona azul…" /></label>
+        <label>Edad mínima
+          <select name="minAge" defaultValue={String(ev[0].min_age ?? 0)}>
+            <option value="0">Todos los públicos</option>
+            <option value="16">+16</option>
+            <option value="18">+18</option>
+          </select>
+        </label>
         <button formAction="/api/panel/events/info">Guardar info práctica</button>
       </form>
       <div className="row">

@@ -5,7 +5,7 @@ import { BrowserQRCodeReader, type IScannerControls } from "@zxing/browser";
 type Scan = { result: string; gate: string; created_at: string };
 type Result = {
   ok?: boolean; error?: string; code?: string; event?: string; zone?: string;
-  holder?: string; doc?: string; seat?: string; kind?: string; buyer?: string; email?: string; scans?: Scan[];
+  holder?: string; doc?: string; seat?: string; kind?: string; minAge?: number; buyer?: string; email?: string; scans?: Scan[];
   offline?: boolean;
 };
 type Evt = { id: string; title: string };
@@ -306,6 +306,9 @@ export default function ValidarClient({ openEvents, closedEvents, isOwner }: {
             <h2 style={{ fontSize: 40, margin: "6px 0" }}>{res.ok ? "VALIDACIÓN CORRECTA" : "ACCESO DENEGADO"}</h2>
             {res.kind && res.kind !== "general" && (
               <p><span className="badge" style={{ background: "#ffd700", color: "#000", fontSize: 18 }}>ACREDITACIÓN {res.kind.toUpperCase()}</span></p>
+            )}
+            {res.ok && Number(res.minAge || 0) > 0 && (
+              <p><span className="badge" style={{ background: "#ff8c00", color: "#000", fontSize: 18 }}>VERIFICAR EDAD +{res.minAge} CON DNI FÍSICO</span></p>
             )}
             {res.offline && <p><span className="badge" style={{ background: "rgba(255,255,255,.25)", color: "#fff" }}>Sin conexión · pendiente de sincronizar</span></p>}
             {res.error && !res.ok && <p style={{ fontSize: 18 }}><strong>{res.error}</strong></p>}

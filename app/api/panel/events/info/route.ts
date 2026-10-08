@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const sql = getDb();
   const ev = await sql`SELECT id FROM events WHERE id=${id} AND org_id=${s.orgId} LIMIT 1`;
   if (!ev[0]) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
-  await sql`UPDATE events SET transport=${String(form.get("transport") || "").slice(0, 1000)}, parking=${String(form.get("parking") || "").slice(0, 1000)} WHERE id=${id}`;
+  await sql`UPDATE events SET transport=${String(form.get("transport") || "").slice(0, 1000)}, parking=${String(form.get("parking") || "").slice(0, 1000)}, min_age=${Math.min(99, Math.max(0, Number(form.get("minAge") || 0)))} WHERE id=${id}`;
   await sql`INSERT INTO audit_events (org_id, actor_id, action, meta) VALUES (${s.orgId}, ${s.userId}, 'event.info', ${JSON.stringify({ id })})`;
   return NextResponse.redirect(new URL(`/panel/${id}`, req.url), 303);
 }

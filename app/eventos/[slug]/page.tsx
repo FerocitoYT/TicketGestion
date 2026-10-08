@@ -71,6 +71,9 @@ export default async function EventPage({ params, searchParams }: { params: Prom
             {String(event.category)} · {sessions.length > 1 ? `${sessions.length} fechas` : dt.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}
           </span>
           <h1 className="event-title" style={{ margin: "10px 0 6px", fontSize: 38 }}>{String(event.title)}</h1>
+          {Number(event.min_age ?? 0) > 0 && (
+            <p><span className="badge" style={{ background: "rgba(255,255,255,.25)", color: "#fff" }}>+{String(event.min_age)} · DNI obligatorio en puerta</span></p>
+          )}
           <p style={{ margin: 0, opacity: 0.93 }}>
             {String(event.venue)}{String(event.city) ? ` · ${event.city}` : ""}{String(event.address) ? ` · ${event.address}` : ""}
           </p>

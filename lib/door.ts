@@ -14,7 +14,7 @@ export async function validateScan(
   if (!code) return fail(400, { error: "QR falsificado o corrupto" });
   const sql = getDb();
   const rows = await sql`
-    SELECT t.*, e.title AS event, z.name AS zone, e.org_id, o.buyer_name, o.buyer_email,
+    SELECT t.*, e.title AS event, z.name AS zone, e.org_id, o.buyer_name, o.buyer_email, e.min_age,
            e.status AS estate, COALESCE(s.ends_at, e.ends_at) AS eends, e.access_grace_minutes AS egrace, e.access_closed AS eclosed,
            e.starts_at AS estarts, s.starts_at AS sstarts, e.access_opens_minutes AS eopens
     FROM tickets t JOIN events e ON e.id=t.event_id JOIN zones z ON z.id=t.zone_id
@@ -53,6 +53,7 @@ export async function validateScan(
     holder: String(t.holder_name || ""), doc: String(t.holder_doc || ""),
     seat: String(t.seat || ""),
     kind: String(t.kind || "general"),
+    minAge: Number(t.min_age ?? 0),
     buyer: String(t.buyer_name || ""), email: String(t.buyer_email || ""),
   };
   const history = await sql`SELECT result, gate, created_at FROM scans WHERE ticket_id=${String(t.id)} ORDER BY created_at DESC LIMIT 5`;
