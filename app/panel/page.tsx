@@ -30,7 +30,7 @@ export default async function Panel() {
     return (
       <>
         <h1>Panel organizador</h1>
-        <p className="muted">{s.name} · {s.role} · <a href="/panel/estadisticas">Estadísticas</a> · <a href="/panel/directo">Directo</a></p>
+        <p className="muted">{s.name} · {s.role} · <a href="/panel/estadisticas">Estadísticas</a> · <a href="/panel/directo">Directo</a> · <a href="/panel/taquilla">Taquilla</a></p>
         <h2>Crear recinto</h2>
         <form action="/api/panel/venues" method="post" className="form">
           <div className="row">

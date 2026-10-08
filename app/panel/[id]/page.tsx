@@ -182,8 +182,8 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
       <h2>Galería</h2>
       <GalleryBlock eventId={id} />
       <h2>Últimos pedidos</h2>
-      <table><thead><tr><th>Email</th><th>Cant</th><th>Total</th><th>Estado</th></tr></thead>
-        <tbody>{orders.map((o) => <tr key={o.id as string}><td>{String(o.buyer_email)}</td><td>{String(o.qty)}</td><td>{(Number(o.total_cents) / 100).toFixed(2)} €</td><td>{String(o.status)}</td></tr>)}</tbody>
+      <table><thead><tr><th>Email</th><th>Cant</th><th>Total</th><th>Estado</th><th>Origen</th></tr></thead>
+        <tbody>{orders.map((o) => <tr key={o.id as string}><td>{String(o.buyer_email) || String(o.buyer_name)}</td><td>{String(o.qty)}</td><td>{(Number(o.total_cents) / 100).toFixed(2)} €</td><td>{String(o.status)}</td><td>{String(o.kind || "venta")}{o.payment_method ? ` (${String(o.payment_method)})` : ""}</td></tr>)}</tbody>
       </table>
       <h2>Accesos</h2>
       <table><thead><tr><th>Hora</th><th>Código</th><th>Resultado</th><th>Puerta</th></tr></thead>
