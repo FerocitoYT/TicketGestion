@@ -15,6 +15,13 @@ async function getEvent(slug: string) {
   const program = await sql`SELECT p.starts_at, p.title, p.description, a.name AS artist, a.slug AS aslug
     FROM program_slots p LEFT JOIN artists a ON a.id=p.artist_id WHERE p.event_id=${ev[0].id} ORDER BY p.starts_at ASC`;
   const gallery = await sql`SELECT image_url, caption FROM event_gallery WHERE event_id=${ev[0].id} ORDER BY created_at ASC`;
+  const packs = await sql`SELECT p.id, p.name, p.qty, p.price_cents, z.name AS zone,
+      (SELECT COUNT(*) FROM orders o WHERE o.pack_id=p.id AND o.status='paid') AS sold_packs
+    FROM packs p JOIN zones z ON z.id=p.zone_id
+    WHERE p.event_id=${ev[0].id} AND p.active=true
+      AND (p.max_uses = 0 OR p.used < p.max_uses)
+      AND (z.capacity - z.sold) >= p.qty
+    ORDER BY p.price_cents ASC`;
   const venueMap = ev[0].venue_id
     ? String((await sql`SELECT map_url FROM venues WHERE id=${ev[0].venue_id} LIMIT 1`)[0]?.map_url || "")
     : "";
@@ -25,6 +32,7 @@ async function getEvent(slug: string) {
     artists: artists as unknown as { name: string; slug: string }[],
     program: program as unknown as { starts_at: string; title: string; description: string; artist: string | null; aslug: string | null }[],
     gallery: gallery as unknown as { image_url: string; caption: string }[],
+    packs: packs as unknown as { id: string; name: string; qty: number; price_cents: number; zone: string }[],
     venueMap,
   };
 }
@@ -40,7 +48,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
     return <p className="muted">Configura DATABASE_URL para ver eventos.</p>;
   }
   if (!data) notFound();
-  const { event, sessions, zones, artists, program, gallery, venueMap } = data;
+  const { event, sessions, zones, artists, program, gallery, venueMap, packs } = data;
   const totalLeft = zones.reduce((a, z) => a + Math.max(0, Number(z.capacity) - Number(z.sold)), 0);
   const dt = new Date(String(event.starts_at));
   return (
@@ -123,6 +131,23 @@ export default async function EventPage({ params, searchParams }: { params: Prom
           <aside className="buybox">
             <h3 style={{ marginTop: 0 }}>Comprar entradas</h3>
             {promo && <p><span className="badge">Código {promo} aplicado: se usará al pagar</span></p>}
+            {packs.length > 0 && (
+              <>
+                <p className="muted" style={{ margin: "8px 0" }}><strong>Packs de grupo</strong></p>
+                {packs.map((p) => (
+                  <div key={String(p.id)} className="zone" style={{ marginBottom: 10 }}>
+                    <div>
+                      <strong>{String(p.name)}</strong><br />
+                      <span className="muted">{String(p.qty)} entradas · {String(p.zone)}</span>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 20, fontWeight: 800 }}>{(Number(p.price_cents) / 100).toFixed(2)} €</div>
+                      <a className="btn btn-blue" style={{ marginTop: 6 }} href={`/comprar?pack=${String(p.id)}${promo ? `&promo=${encodeURIComponent(promo)}` : ""}`}>Elegir pack</a>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
             {zones.length === 0 || sessions.length === 0 ? (
               <p className="muted">Entradas a la venta próximamente.</p>
             ) : (

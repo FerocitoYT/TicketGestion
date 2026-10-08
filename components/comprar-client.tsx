@@ -2,13 +2,15 @@
 import { useEffect, useState } from "react";
 import { seatName, findTogether } from "@/lib/seats";
 
-export default function ComprarClient({ eventId, eventTitle, zone, maxOrder, simulated, promo0 }: {
+export default function ComprarClient({ eventId, eventTitle, zone, maxOrder, simulated, promo0, packId, packQty }: {
   eventId: string;
   eventTitle: string;
   zone: { id: string; name: string; price_cents: number; capacity: number; sold: number; seat_rows: number; seat_cols: number; session_label: string; accessible: boolean; companion_free: boolean };
   maxOrder: number;
   simulated: boolean;
   promo0: string;
+  packId: string;
+  packQty: number;
 }) {
   const mapped = zone.seat_rows > 0;
   const [taken, setTaken] = useState<string[]>([]);
@@ -94,6 +96,7 @@ export default function ComprarClient({ eventId, eventTitle, zone, maxOrder, sim
   }
   async function reserve() {
     if (allSeats.length === 0) return;
+    if (packQty > 0 && allSeats.length !== packQty) { setMsg(`Este pack es de ${packQty} entradas exactas.`); return; }
     setReserving(true);
     setMsg("");
     try {
@@ -171,11 +174,12 @@ export default function ComprarClient({ eventId, eventTitle, zone, maxOrder, sim
           <input type="hidden" name="qty" value={String(hold.seats.length)} />
           <input type="hidden" name="seats" value={JSON.stringify(hold.seats)} />
           <input type="hidden" name="holdId" value={hold.holdId} />
+          {packId && <input type="hidden" name="packId" value={packId} />}
           {companion && <input type="hidden" name="companion" value="1" />}
           <p className="alert ok"><strong>Paso 2 — reservado para {eventTitle}</strong><br />{zone.name} · {[...hold.seats].sort().join(", ")} · Te quedan <strong>{mm}:{ss}</strong>. Sin pago se libera solo.</p>
           <label>Nombre completo<input name="buyerName" required placeholder="Tu nombre" /></label>
           <label>Email<input name="buyerEmail" type="email" required placeholder="tu@email.com" /></label>
-          <label>Código promo<input name="promo" placeholder="EARLY10" defaultValue={promo0} /></label>
+          <label>Código promo<input name="promo" placeholder={packId ? "No combina con packs" : "EARLY10"} defaultValue={packId ? "" : promo0} disabled={!!packId} /></label>
           <label>Titulares (uno por línea: “Nombre | DNI”, en orden de asiento)<textarea name="holders" rows={hold.seats.length} placeholder="Ana López | 12345678A" /></label>
           {simulated
             ? <><p className="alert ok">Modo pruebas: pago simulado. Tarjeta 4242 4242 4242 4242.</p><button>Pagar (simulado)</button></>
@@ -187,11 +191,14 @@ export default function ComprarClient({ eventId, eventTitle, zone, maxOrder, sim
         <form action="/api/checkout" method="post" className="form">
           <input type="hidden" name="eventId" value={eventId} />
           <input type="hidden" name="zoneId" value={zone.id} />
+          {packId && <input type="hidden" name="packId" value={packId} />}
           <label>Nombre completo<input name="buyerName" required placeholder="Tu nombre" /></label>
           <label>Email<input name="buyerEmail" type="email" required placeholder="tu@email.com" /></label>
           <div className="row">
-            <label>Cantidad (máx {maxOrder})<input name="qty" type="number" min={1} max={maxOrder} defaultValue={1} required /></label>
-            <label>Código promo<input name="promo" placeholder="EARLY10" defaultValue={promo0} /></label>
+            {packQty > 0
+              ? <p><span className="badge">Pack: {packQty} entradas fijas</span><input type="hidden" name="qty" value={String(packQty)} /></p>
+              : <label>Cantidad (máx {maxOrder})<input name="qty" type="number" min={1} max={maxOrder} defaultValue={1} required /></label>}
+            <label>Código promo<input name="promo" placeholder={packId ? "No combina con packs" : "EARLY10"} defaultValue={packId ? "" : promo0} disabled={!!packId} /></label>
           </div>
           {zone.accessible && (
             <label style={{ display: "flex", gap: 8, alignItems: "center" }}>

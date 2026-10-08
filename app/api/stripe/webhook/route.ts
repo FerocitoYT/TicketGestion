@@ -40,6 +40,7 @@ export async function POST(req: Request) {
         VALUES (${orderId}, ${String(order.event_id)}, ${String(order.zone_id)}, ${newTicketCode()}, ${String(holders[i]?.name || order.buyer_name)}, ${String(holders[i]?.doc || "")}, ${String(holders[i]?.seat || "")})`;
     }
     if (order.hold_id) await sql`DELETE FROM seat_holds WHERE hold_id=${String(order.hold_id)}`;
+    if (order.pack_id) await sql`UPDATE packs SET used = used + 1 WHERE id=${String(order.pack_id)}`;
     const ev = await sql`SELECT title FROM events WHERE id=${String(order.event_id)} LIMIT 1`;
     const appUrl = baseUrl(req);
     await sendEmail(

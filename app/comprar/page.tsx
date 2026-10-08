@@ -4,19 +4,30 @@ import ComprarClient from "@/components/comprar-client";
 
 export const dynamic = "force-dynamic";
 
-export default async function ComprarPage({ searchParams }: { searchParams: Promise<{ zone?: string; promo?: string }> }) {
+export default async function ComprarPage({ searchParams }: { searchParams: Promise<{ zone?: string; promo?: string; pack?: string }> }) {
   const sp = await searchParams;
-  if (!sp.zone) notFound();
   const promo0 = (sp.promo || "").toUpperCase().trim().slice(0, 32);
   try {
     const sql = getDb();
+    let pack: { id: string; name: string; qty: number; price_cents: number; zone_id: string } | null = null;
+    let zoneId = sp.zone || "";
+    if (sp.pack) {
+      const pr = await sql`SELECT p.id, p.name, p.qty, p.price_cents, p.zone_id, p.max_uses, p.used, p.active,
+          z.capacity, z.sold FROM packs p JOIN zones z ON z.id=p.zone_id WHERE p.id=${sp.pack} LIMIT 1`;
+      if (!pr[0] || !pr[0].active) notFound();
+      if (Number(pr[0].max_uses) > 0 && Number(pr[0].used) >= Number(pr[0].max_uses)) notFound();
+      if (Number(pr[0].capacity) - Number(pr[0].sold) < Number(pr[0].qty)) notFound();
+      pack = { id: String(pr[0].id), name: String(pr[0].name), qty: Number(pr[0].qty), price_cents: Number(pr[0].price_cents), zone_id: String(pr[0].zone_id) };
+      zoneId = pack.zone_id;
+    }
+    if (!zoneId) notFound();
     const rows = await sql`
       SELECT z.id, z.name, z.price_cents, z.capacity, z.sold, z.seat_rows, z.seat_cols, z.accessible, z.companion_free,
              z.session_id, e.id AS event_id, e.title AS event_title, e.slug AS eslug, e.status,
              e.max_per_order, s.starts_at AS ses_start,
              e.image_url AS poster
       FROM zones z JOIN events e ON e.id=z.event_id LEFT JOIN sessions s ON s.id=z.session_id
-      WHERE z.id=${sp.zone} LIMIT 1`;
+      WHERE z.id=${zoneId} LIMIT 1`;
     if (!rows[0] || rows[0].status !== "published") notFound();
     const z = rows[0];
     const left = Number(z.capacity) - Number(z.sold);
@@ -44,10 +55,13 @@ export default async function ComprarPage({ searchParams }: { searchParams: Prom
         <p className="crumbs"><a href="/">Inicio</a> / {String(z.event_title)} / {String(z.name)}</p>
         <h1>{String(z.event_title)}</h1>
         <p><span className="badge">{String(z.name)} · {(Number(z.price_cents) / 100).toFixed(2)} €</span> {sesLabel && <span className="badge">{sesLabel}</span>} <span className="badge">{left} disponibles</span></p>
+        {pack && <p><span className="badge">Pack {pack.name}: {pack.qty} entradas por {(pack.price_cents / 100).toFixed(2)} € (sin promos)</span></p>}
         <ComprarClient
           eventId={String(z.event_id)}
           eventTitle={String(z.event_title)}
           promo0={promo0}
+          packId={pack?.id || ""}
+          packQty={pack?.qty || 0}
           zone={{
             id: String(z.id), name: String(z.name), price_cents: Number(z.price_cents),
             capacity: Number(z.capacity), sold: Number(z.sold),

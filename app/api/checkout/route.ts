@@ -23,8 +23,25 @@ export async function POST(req: Request) {
   const promo = String(form.get("promo") || "").toUpperCase().trim();
   if (!eventId || !zoneId || !buyerName || !buyerEmail) return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
   const sql = getDb();
-  const zones = await sql`SELECT z.*, e.title, e.status, e.max_per_order, e.max_per_buyer FROM zones z JOIN events e ON e.id=z.event_id WHERE z.id=${zoneId} AND z.event_id=${eventId} LIMIT 1`;
+  // Pack de grupo: fija zona, cantidad y precio cerrado (no combina con promos).
+  const packId = String(form.get("packId") || "");
+  let pack: Record<string, unknown> | null = null;
+  let packZoneId = zoneId;
+  let packQty = 0;
+  if (packId) {
+    const pr = await sql`SELECT * FROM packs WHERE id=${packId} AND event_id=${eventId} AND active=true LIMIT 1`;
+    if (!pr[0]) return NextResponse.json({ error: "Pack no disponible" }, { status: 400 });
+    if (Number(pr[0].max_uses) > 0 && Number(pr[0].used) >= Number(pr[0].max_uses)) {
+      return NextResponse.json({ error: "Pack agotado" }, { status: 400 });
+    }
+    pack = pr[0] as Record<string, unknown>;
+    packZoneId = String(pack.zone_id);
+    packQty = Number(pack.qty);
+  }
+  const zones = await sql`SELECT z.*, e.title, e.status, e.max_per_order, e.max_per_buyer FROM zones z JOIN events e ON e.id=z.event_id WHERE z.id=${packZoneId} AND z.event_id=${eventId} LIMIT 1`;
   if (!zones[0] || zones[0].status !== "published") return NextResponse.json({ error: "Zona no disponible" }, { status: 400 });
+  const zoneIdEff = packZoneId;
+  if (pack && qty !== packQty) return NextResponse.json({ error: `Este pack es de ${packQty} entradas` }, { status: 400 });
   // Acompañante en zona adaptada: una entrada extra a su nombre (gratis o a precio según evento).
   // Con mapa, su asiento ya va en la selección; sin mapa, se suma uno a la cantidad.
   const companion = String(form.get("companion") || "") === "1" && Boolean(zones[0].accessible);
@@ -60,6 +77,8 @@ export async function POST(req: Request) {
   }
   let total = unit * qty;
   if (companion && zones[0].companion_free) total = Math.max(0, total - unit);
+  // Pack: precio cerrado, sin promos ni descuentos combinados.
+  if (pack) total = Number(pack.price_cents);
   if (promoterId) {
     const pct = await sql`SELECT commission_pct FROM promoters WHERE id=${promoterId} LIMIT 1`;
     commission = Math.round(total * (Number(pct[0]?.commission_pct || 0) / 100));
@@ -89,12 +108,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Asiento fuera del plano" }, { status: 400 });
     }
     await sql`DELETE FROM seat_holds WHERE expires_at < now()`;
-    const mine = await sql`SELECT seat FROM seat_holds WHERE hold_id=${holdId} AND zone_id=${zoneId} AND expires_at > now()`;
+    const mine = await sql`SELECT seat FROM seat_holds WHERE hold_id=${holdId} AND zone_id=${zoneIdEff} AND expires_at > now()`;
     const mineSet = mine.map((m) => String(m.seat)).sort();
     if (mineSet.length !== uniq.length || !uniq.every((s, i) => s === mineSet[i])) {
       return NextResponse.json({ error: "Tu reserva caducó o cambió. Elige de nuevo los asientos." }, { status: 410 });
     }
-    const busy = await sql`SELECT seat FROM tickets WHERE zone_id=${zoneId} AND seat = ANY(${uniq}) AND status IN ('valid','used')`;
+    const busy = await sql`SELECT seat FROM tickets WHERE zone_id=${zoneIdEff} AND seat = ANY(${uniq}) AND status IN ('valid','used')`;
     if (busy.length > 0) return NextResponse.json({ error: `Se vendió mientras reservabas: ${busy.map((b) => String(b.seat)).join(", ")}` }, { status: 409 });
     picked = uniq;
     for (let i = 0; i < qty; i++) holders[i].seat = picked[i];
@@ -102,8 +121,8 @@ export async function POST(req: Request) {
     holdIdUsed = holdId;
   }
   const created = await sql`
-    INSERT INTO orders (event_id, zone_id, buyer_name, buyer_email, qty, total_cents, idempotency_key, holders, hold_id, promoter_id, commission_cents)
-    VALUES (${eventId}, ${zoneId}, ${buyerName}, ${buyerEmail}, ${qty}, ${total}, ${idem}, ${JSON.stringify(holders)}, ${holdIdUsed || null}, ${promoterId}, ${commission}) RETURNING id`;
+    INSERT INTO orders (event_id, zone_id, buyer_name, buyer_email, qty, total_cents, idempotency_key, holders, hold_id, promoter_id, commission_cents, pack_id)
+    VALUES (${eventId}, ${zoneIdEff}, ${buyerName}, ${buyerEmail}, ${qty}, ${total}, ${idem}, ${JSON.stringify(holders)}, ${holdIdUsed || null}, ${promoterId}, ${commission}, ${pack ? String(pack.id) : null}) RETURNING id`;
   const orderId = created[0].id as string;
   const appUrl = baseUrl(req);
   const releaseHold = async () => {
@@ -113,25 +132,26 @@ export async function POST(req: Request) {
   if (!stripeConfigured()) {
     const upd = await sql`
       UPDATE zones SET sold = sold + ${qty}
-      WHERE id=${zoneId} AND sold + ${qty} <= capacity RETURNING id`;
+      WHERE id=${zoneIdEff} AND sold + ${qty} <= capacity RETURNING id`;
     if (!upd[0]) {
       await sql`UPDATE orders SET status='cancelled' WHERE id=${orderId}`;
       await releaseHold();
       return NextResponse.json({ error: "Sin stock suficiente" }, { status: 400 });
     }
     await sql`UPDATE orders SET status='paid' WHERE id=${orderId}`;
+    if (pack) await sql`UPDATE packs SET used = used + 1 WHERE id=${String(pack.id)}`;
     try {
       for (let i = 0; i < qty; i++) {
         const seat = mapped ? picked[i] : holders[i].seat;
         await sql`INSERT INTO tickets (order_id, event_id, zone_id, code, holder_name, holder_doc, seat)
-          VALUES (${orderId}, ${eventId}, ${zoneId}, ${newTicketCode()}, ${holders[i].name}, ${holders[i].doc}, ${seat})`;
+          VALUES (${orderId}, ${eventId}, ${zoneIdEff}, ${newTicketCode()}, ${holders[i].name}, ${holders[i].doc}, ${seat})`;
       }
       await releaseHold();
     } catch {
       // Carrera por el mismo asiento (índice único): anula la compra simulada.
       await sql`DELETE FROM tickets WHERE order_id=${orderId}`;
       await sql`UPDATE orders SET status='cancelled' WHERE id=${orderId}`;
-      await sql`UPDATE zones SET sold = GREATEST(0, sold - ${qty}) WHERE id=${zoneId}`;
+      await sql`UPDATE zones SET sold = GREATEST(0, sold - ${qty}) WHERE id=${zoneIdEff}`;
       return NextResponse.json({ error: "Un asiento se ocupó mientras comprabas. Elige otros." }, { status: 409 });
     }
     await sendEmail(
