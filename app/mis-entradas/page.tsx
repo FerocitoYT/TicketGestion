@@ -3,7 +3,7 @@ import { useState } from "react";
 
 export default function MisEntradas() {
   const [email, setEmail] = useState("");
-  const [tickets, setTickets] = useState<{ code: string; event: string; zone: string; status: string; holder?: string }[]>([]);
+  const [tickets, setTickets] = useState<{ code: string; event: string; zone: string; status: string; holder?: string; seat?: string; gift?: boolean }[]>([]);
   const [err, setErr] = useState("");
   async function lookup(e: React.FormEvent) {
     e.preventDefault();
@@ -23,9 +23,10 @@ export default function MisEntradas() {
       {err && <p className="alert err">{err}</p>}
       {tickets.map((t) => (
         <div key={t.code} className="card" style={{ marginTop: 10 }}>
-          <strong>{t.code}</strong> · {t.event} · {t.zone} · {t.status}{t.holder ? ` · ${t.holder}` : ""}
+          <strong>{t.code}</strong> · {t.event} · {t.zone} · {t.status}{t.holder ? ` · ${t.holder}` : ""}{t.seat ? ` · ${t.seat}` : ""}
           <br /><a href={`/t/${encodeURIComponent(t.code)}`}>Ver QR</a>
-          {t.status === "valid" && <> · <a href={`/transferir?code=${encodeURIComponent(t.code)}`}>Transferir</a></>}
+          {t.gift && <> · <a href={`/regalo/${encodeURIComponent(t.code)}`}>Enlace regalo para compartir</a></>}
+          {t.status === "valid" && !t.gift && <> · <a href={`/transferir?code=${encodeURIComponent(t.code)}`}>Transferir</a></>}
         </div>
       ))}
     </>

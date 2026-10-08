@@ -56,6 +56,10 @@ export async function validateScan(
     buyer: String(t.buyer_name || ""), email: String(t.buyer_email || ""),
   };
   const history = await sql`SELECT result, gate, created_at FROM scans WHERE ticket_id=${String(t.id)} ORDER BY created_at DESC LIMIT 5`;
+  if (t.is_gift) {
+    await sql`INSERT INTO scans (ticket_id, event_id, result, gate, scanned_by) VALUES (${String(t.id)}, ${String(t.event_id)}, 'invalid', ${gate}, ${user.userId})`;
+    return fail(403, { error: "Regalo sin activar: el agasajado debe nominarlo antes de puerta", ...person });
+  }
   if (t.status === "cancelled") {
     await sql`INSERT INTO scans (ticket_id, event_id, result, gate, scanned_by) VALUES (${String(t.id)}, ${String(t.event_id)}, 'cancelled', ${gate}, ${user.userId})`;
     return fail(410, { error: "ENTRADA CANCELADA — acceso denegado", ...person, scans: history });

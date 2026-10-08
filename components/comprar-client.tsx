@@ -24,6 +24,7 @@ export default function ComprarClient({ eventId, eventTitle, zone, maxOrder, sim
   const [left, setLeft] = useState(0);
   const [companion, setCompanion] = useState(false);
   const [compSeat, setCompSeat] = useState("");
+  const [gift, setGift] = useState(false);
 
   function adjacentTo(sel: string[]): string {
     const blocked = new Set([...taken, ...held, ...sel]);
@@ -175,6 +176,11 @@ export default function ComprarClient({ eventId, eventTitle, zone, maxOrder, sim
           <input type="hidden" name="seats" value={JSON.stringify(hold.seats)} />
           <input type="hidden" name="holdId" value={hold.holdId} />
           {packId && <input type="hidden" name="packId" value={packId} />}
+          <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input type="checkbox" checked={gift} onChange={(e) => setGift(e.target.checked)} style={{ width: "auto" }} />
+            Es un regalo (el agasajado la activa con sus datos)
+          </label>
+          {gift && <input type="hidden" name="gift" value="1" />}
           {companion && <input type="hidden" name="companion" value="1" />}
           <p className="alert ok"><strong>Paso 2 — reservado para {eventTitle}</strong><br />{zone.name} · {[...hold.seats].sort().join(", ")} · Te quedan <strong>{mm}:{ss}</strong>. Sin pago se libera solo.</p>
           <label>Nombre completo<input name="buyerName" required placeholder="Tu nombre" /></label>
@@ -207,6 +213,11 @@ export default function ComprarClient({ eventId, eventTitle, zone, maxOrder, sim
             </label>
           )}
           {companion && <input type="hidden" name="companion" value="1" />}
+          <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input type="checkbox" checked={gift} onChange={(e) => setGift(e.target.checked)} style={{ width: "auto" }} />
+            Es un regalo (el agasajado la activa con sus datos)
+          </label>
+          {gift && <input type="hidden" name="gift" value="1" />}
           <label>Titulares (uno por línea: “Nombre | DNI | Asiento opcional”)<textarea name="holders" rows={2} placeholder="Ana López | 12345678A" /></label>
           {simulated
             ? <><p className="alert ok">Modo pruebas: pago simulado. Tarjeta 4242 4242 4242 4242.</p><button>Pagar (simulado)</button></>

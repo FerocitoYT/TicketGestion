@@ -16,7 +16,7 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
   try {
     const sql = getDb();
     const rows = await sql`
-      SELECT t.code, t.status, t.holder_name, t.holder_doc, t.seat, t.kind, e.title AS event, e.slug AS event_slug, z.name AS zone, e.starts_at
+      SELECT t.code, t.status, t.holder_name, t.holder_doc, t.seat, t.kind, t.is_gift, e.title AS event, e.slug AS event_slug, z.name AS zone, e.starts_at
       FROM tickets t JOIN events e ON e.id=t.event_id JOIN zones z ON z.id=t.zone_id
       WHERE t.code=${code} LIMIT 1`;
     row = rows[0] as Record<string, unknown> | undefined;
@@ -57,6 +57,9 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
         <PrintButton />
       </div>
       <p className="no-print" style={{ marginTop: 14 }}><a href={`/encuestas/${encodeURIComponent(String(row.event_slug || ""))}`}>Opina sobre este evento</a></p>
+      {Boolean(row.is_gift) && (
+        <p className="alert ok no-print">Es un regalo sin activar. Comparte este enlace: <a href={`/regalo/${encodeURIComponent(String(row.code))}`}>activar regalo</a></p>
+      )}
     </>
   );
 }

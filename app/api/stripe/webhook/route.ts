@@ -36,8 +36,8 @@ export async function POST(req: Request) {
     await sql`UPDATE orders SET status='paid' WHERE id=${orderId}`;
     const holders = (Array.isArray(order.holders) ? order.holders : []) as { name?: string; doc?: string; seat?: string }[];
     for (let i = 0; i < Number(order.qty); i++) {
-      await sql`INSERT INTO tickets (order_id, event_id, zone_id, code, holder_name, holder_doc, seat)
-        VALUES (${orderId}, ${String(order.event_id)}, ${String(order.zone_id)}, ${newTicketCode()}, ${String(holders[i]?.name || order.buyer_name)}, ${String(holders[i]?.doc || "")}, ${String(holders[i]?.seat || "")})`;
+      await sql`INSERT INTO tickets (order_id, event_id, zone_id, code, holder_name, holder_doc, seat, is_gift)
+        VALUES (${orderId}, ${String(order.event_id)}, ${String(order.zone_id)}, ${newTicketCode()}, ${String(holders[i]?.name || order.buyer_name)}, ${String(holders[i]?.doc || "")}, ${String(holders[i]?.seat || "")}, ${Boolean(order.is_gift)})`;
     }
     if (order.hold_id) await sql`DELETE FROM seat_holds WHERE hold_id=${String(order.hold_id)}`;
     if (order.pack_id) await sql`UPDATE packs SET used = used + 1 WHERE id=${String(order.pack_id)}`;

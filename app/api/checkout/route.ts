@@ -120,9 +120,11 @@ export async function POST(req: Request) {
     // holders viaja con el pedido (también para el webhook de Stripe); la reserva se consume al pagar.
     holdIdUsed = holdId;
   }
+  // Regalo: se compra sin nominar; el agasajado la activa en /regalo/[código].
+  const gift = String(form.get("gift") || "") === "1";
   const created = await sql`
-    INSERT INTO orders (event_id, zone_id, buyer_name, buyer_email, qty, total_cents, idempotency_key, holders, hold_id, promoter_id, commission_cents, pack_id)
-    VALUES (${eventId}, ${zoneIdEff}, ${buyerName}, ${buyerEmail}, ${qty}, ${total}, ${idem}, ${JSON.stringify(holders)}, ${holdIdUsed || null}, ${promoterId}, ${commission}, ${pack ? String(pack.id) : null}) RETURNING id`;
+    INSERT INTO orders (event_id, zone_id, buyer_name, buyer_email, qty, total_cents, idempotency_key, holders, hold_id, promoter_id, commission_cents, pack_id, is_gift)
+    VALUES (${eventId}, ${zoneIdEff}, ${buyerName}, ${buyerEmail}, ${qty}, ${total}, ${idem}, ${JSON.stringify(holders)}, ${holdIdUsed || null}, ${promoterId}, ${commission}, ${pack ? String(pack.id) : null}, ${gift}) RETURNING id`;
   const orderId = created[0].id as string;
   const appUrl = baseUrl(req);
   const releaseHold = async () => {
@@ -143,8 +145,8 @@ export async function POST(req: Request) {
     try {
       for (let i = 0; i < qty; i++) {
         const seat = mapped ? picked[i] : holders[i].seat;
-        await sql`INSERT INTO tickets (order_id, event_id, zone_id, code, holder_name, holder_doc, seat)
-          VALUES (${orderId}, ${eventId}, ${zoneIdEff}, ${newTicketCode()}, ${holders[i].name}, ${holders[i].doc}, ${seat})`;
+        await sql`INSERT INTO tickets (order_id, event_id, zone_id, code, holder_name, holder_doc, seat, is_gift)
+          VALUES (${orderId}, ${eventId}, ${zoneIdEff}, ${newTicketCode()}, ${holders[i].name}, ${holders[i].doc}, ${seat}, ${gift})`;
       }
       await releaseHold();
     } catch {
