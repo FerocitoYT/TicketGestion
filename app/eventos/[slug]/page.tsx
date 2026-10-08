@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getDb } from "@/lib/db";
+import { getForecast } from "@/lib/meteo";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,9 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   }
   if (!data) notFound();
   const { event, sessions, zones, artists, program, gallery, venueMap, packs } = data;
+  const forecast = String(event.city || "")
+    ? await getForecast(String(event.city), String(event.starts_at)).catch(() => null)
+    : null;
   const totalLeft = zones.reduce((a, z) => a + Math.max(0, Number(z.capacity) - Number(z.sold)), 0);
   const dt = new Date(String(event.starts_at));
   return (
@@ -111,6 +115,16 @@ export default async function EventPage({ params, searchParams }: { params: Prom
               <>
                 <h3>Cómo llegar</h3>
                 <img src={venueMap} alt="Plano del recinto" style={{ width: "100%", borderRadius: 12 }} />
+              </>
+            )}
+            {(event.transport || event.parking || forecast) && (
+              <>
+                <h3>El día D</h3>
+                {forecast && (
+                  <p><span className="badge">Meteo: {forecast.label} · {forecast.tmax}°C · lluvia {forecast.precip}%</span></p>
+                )}
+                {event.transport ? <p><strong>Transporte:</strong> {String(event.transport)}</p> : null}
+                {event.parking ? <p><strong>Parking:</strong> {String(event.parking)}</p> : null}
               </>
             )}
             {gallery.length > 0 && (

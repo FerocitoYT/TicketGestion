@@ -46,8 +46,7 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
       <a href="/panel">← Volver</a>
       <h1>{String(ev[0].title)}</h1>
       <p className="muted">slug: {String(ev[0].slug)} · estado: {String(ev[0].status)}</p>
-      <h2>Cartel del concierto</h2>
-      {ev[0].image_url ? (
+      <h2>Cartel del concierto</h2>      {ev[0].image_url ? (
         <img src={String(ev[0].image_url)} alt="Cartel" style={{ maxWidth: 320, borderRadius: 12 }} />
       ) : (
         <p className="muted">Sin cartel: se muestra un fondo por categoría.</p>
@@ -57,6 +56,13 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
         <label>Archivo (JPG/PNG/WebP, máx 1,5 MB)<input name="file" type="file" accept="image/jpeg,image/png,image/webp" /></label>
         <label>O URL de imagen<input name="imageUrl" placeholder="https://…" /></label>
         <button formAction="/api/panel/events/poster">Guardar cartel</button>
+      </form>
+      <h2>Info día D</h2>
+      <form action="/api/panel/events/info" method="post" className="form">
+        <input type="hidden" name="id" value={id} />
+        <label>Cómo llegar (transporte)<textarea name="transport" rows={2} defaultValue={String(ev[0].transport || "")} placeholder="Metro L2 parada…, bus 34, tranvía…" /></label>
+        <label>Parking<textarea name="parking" rows={2} defaultValue={String(ev[0].parking || "")} placeholder="Parking norte 5 €, zona azul…" /></label>
+        <button formAction="/api/panel/events/info">Guardar info práctica</button>
       </form>
       <div className="row">
         <form action="/api/panel/events/publish" method="post"><input type="hidden" name="id" value={id} /><button>Publicar</button></form>
