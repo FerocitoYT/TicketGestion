@@ -9,6 +9,7 @@ import PromotersBlock from "@/components/promoters-block";
 import ProgramBlock from "@/components/program-block";
 import GalleryBlock from "@/components/gallery-block";
 import PacksBlock from "@/components/packs-block";
+import RifaBlock from "@/components/rifa-block";
 import ShiftsBlock from "@/components/shifts-block";
 import EventIncidentsBlock from "@/components/event-incidents-block";
 
@@ -186,6 +187,8 @@ export default async function ManageEvent({ params }: { params: Promise<{ id: st
       <PromotersBlock eventId={id} slug={String(ev[0].slug)} />
       <h2>Packs de grupo</h2>
       <PacksBlock eventId={id} />
+      <h2>Sorteos entre asistentes</h2>
+      <RifaBlock eventId={id} />
       <h2>Programa (horarios)</h2>
       <ProgramBlock eventId={id} />
       <h2>Galería</h2>

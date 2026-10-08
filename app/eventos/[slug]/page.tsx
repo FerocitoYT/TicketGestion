@@ -23,6 +23,12 @@ async function getEvent(slug: string) {
       AND (p.max_uses = 0 OR p.used < p.max_uses)
       AND (z.capacity - z.sold) >= p.qty
     ORDER BY p.price_cents ASC`;
+  const raffles = await sql`SELECT r.title, r.prize FROM raffles r WHERE r.event_id=${ev[0].id} AND r.status='drawn' ORDER BY r.drawn_at DESC`;
+  const winners = raffles.length > 0
+    ? await sql`SELECT w.raffle_id, r.title, t.holder_name, t.code FROM raffle_winners w
+        JOIN tickets t ON t.id=w.ticket_id JOIN raffles r ON r.id=w.raffle_id
+        WHERE r.event_id=${ev[0].id} AND r.status='drawn' ORDER BY r.drawn_at DESC, w.created_at ASC LIMIT 50`
+    : [];
   const venueMap = ev[0].venue_id
     ? String((await sql`SELECT map_url FROM venues WHERE id=${ev[0].venue_id} LIMIT 1`)[0]?.map_url || "")
     : "";
@@ -34,6 +40,7 @@ async function getEvent(slug: string) {
     program: program as unknown as { starts_at: string; title: string; description: string; artist: string | null; aslug: string | null }[],
     gallery: gallery as unknown as { image_url: string; caption: string }[],
     packs: packs as unknown as { id: string; name: string; qty: number; price_cents: number; zone: string }[],
+    winners: winners as unknown as { title: string; holder_name: string; code: string }[],
     venueMap,
   };
 }
@@ -49,7 +56,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
     return <p className="muted">Configura DATABASE_URL para ver eventos.</p>;
   }
   if (!data) notFound();
-  const { event, sessions, zones, artists, program, gallery, venueMap, packs } = data;
+  const { event, sessions, zones, artists, program, gallery, venueMap, packs, winners } = data;
   const forecast = String(event.city || "")
     ? await getForecast(String(event.city), String(event.starts_at)).catch(() => null)
     : null;
@@ -135,6 +142,14 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                     <img key={i} src={g.image_url} alt={g.caption} title={g.caption} style={{ width: "100%", borderRadius: 10 }} />
                   ))}
                 </div>
+              </>
+            )}
+            {winners.length > 0 && (
+              <>
+                <h3>Ganadores de sorteos</h3>
+                {winners.map((w, i) => (
+                  <p key={i}><span className="badge">{String(w.title)}: {String(w.holder_name)} ({String(w.code)})</span></p>
+                ))}
               </>
             )}
             <h3>Preguntas frecuentes</h3>
